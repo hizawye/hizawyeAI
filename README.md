@@ -42,7 +42,39 @@ This dynamic drives the AI to evolve, balancing goals, frustration, and curiosit
 - Python 3.7+
 - Ollama installed
 
-### Step 1: Install Dependencies
+### Step 1: Create a Virtual Environment
+
+```bash
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+```
+
+> **Troubleshooting:**
+> 
+> If you see an error like:
+> 
+> ```
+> The virtual environment was not created successfully because ensurepip is not available.
+> On Debian/Ubuntu systems, you need to install the python3-venv package using the following command.
+> ```
+> 
+> Install the required package with:
+> 
+> ```bash
+> sudo apt install python3-venv
+> ```
+> 
+> Then, try creating the virtual environment again.
+
+After activation, your prompt should change to indicate you're working in the virtual environment.
+
+### Step 2: Install Dependencies
 
 Create a `requirements.txt` file (see below) and run:
 
@@ -50,7 +82,7 @@ Create a `requirements.txt` file (see below) and run:
 pip install -r requirements.txt
 ```
 
-### Step 2: Set up the Language Model
+### Step 3: Set up the Language Model
 
 Download the small language model:
 

@@ -1,3 +1,4 @@
 hizawye_mind/
 __pycache__/
 *.pyc
+venv/
