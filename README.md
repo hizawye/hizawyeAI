@@ -123,3 +123,13 @@ ollama pull tinyllama
      This displays the current memory graph without modifying any data.
 
 ---
+
+## Research and Design
+
+### Hizawye AI Research Paper Summary
+
+This paper introduces Hizawye AI, a computational framework simulating consciousness based on Global Workspace Theory. It models an autonomous agent driven by internal states (curiosity, boredom, pain) with a modular "mind" (JSON files), a dynamic knowledge graph for memory, and a Python-orchestrated reasoning loop using a small Large Language Model (LLM). The AI exhibits emergent behaviors like goal-oriented focus, idle wandering, and strategic failure, learning from repeated failures. The paper details its architecture, consciousness loop methodology, and analyzes experimental logs, highlighting both the successes of its adaptive strategies and the challenges posed by the limitations of its reasoning core.
+
+### Hizawye AI Idea Mind Map
+
+The mind map visually represents the core components and interactions of Hizawye AI. It illustrates how JSON files influence aspects like creativity, beliefs, and delusions. A central "Hizawye AI" continuously interacts with these variables and JSON files, processing knowledge, wandering through ideas, and forming memories, akin to a human brain. Memory is depicted as an indexing system or a tree, where the AI explores ideas until it reaches a dead end, prompting further research. The map also highlights "reason," "desires," and "goals," emphasizing the ability to inject new ideas for the AI to follow and connect patterns. Key elements like curiosity, pain, questioning, wandering, and ideas are also integral to the visual representation.
