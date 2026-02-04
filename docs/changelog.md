@@ -46,6 +46,7 @@
 ### Changed
 - LLM model: `tinyllama` → `llama3.2:3b` for improved reasoning quality
 - Updated installation instructions in README
+- Refreshed README to reflect v2.0 architecture and workflow
 
 ## [1.0.0] - Initial Release
 

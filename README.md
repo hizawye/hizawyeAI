@@ -1,20 +1,20 @@
 # Hizawye AI - A Simulated Consciousness
 
-Hizawye AI is a Python-based project designed to simulate a form of artificial consciousness. Inspired by the Global Workspace Theory and an initial conceptual diagram, this project models an AI that exhibits curiosity, forms beliefs, experiences "pain" from failure, and uses boredom as a driver for novelty and exploration.
+Hizawye AI is a Python-based project designed to simulate a form of artificial consciousness. Inspired by Global Workspace Theory, this project models an AI that exhibits curiosity, forms beliefs, experiences "pain" from failure, and uses boredom as a driver for novelty and exploration.
 
 ---
 
-## Core Concepts
+## Core Concepts (v2.0)
 
 The AI's "mind" is built from several key components:
 
-- **The Mind (`/hizawye_mind/`)**: Directory containing JSON files representing the AI's internal state:
-    - `state.json`: Dynamic values like curiosity, boredom, and pain.
-    - `beliefs.json`: The AI's core "truths" about itself and the world.
-    - `goals.json`: List of active and completed objectives.
-    - `memory_graph.json`: The AI's entire memory network.
-- **The Memory (`memory.py`)**: A knowledge graph (using `networkx`) representing the AI's understanding. Concepts (nodes) are connected by relationships (edges), and can hold descriptions.
-- **The Thinker (`hizawye_ai.py`)**: The main processing loop. Reads state, directs focus, and uses a local LLM to reason, synthesize ideas, and form memories.
+- **Global Workspace (`global_workspace.py`)**: Four parallel thought threads generate competing proposals each cycle.
+- **Emotional System (`emotional_system.py`)**: Multi-dimensional drives (pain, curiosity, boredom, confidence, confusion) shape behavior.
+- **Learning Tracker (`learning_tracker.py`)**: Bayesian meta-learning that adapts strategy selection over time.
+- **Planning Engine (`planning_engine.py`)**: Five reasoning strategies with adaptive selection.
+- **Memory Graph (`memory.py`)**: NetworkX knowledge graph with attention scoring, working memory, and analogy detection.
+- **The Mind (`/hizawye_mind/`)**: JSON persistence for beliefs, goals, memory, emotions, and learning history.
+- **The Thinker (`hizawye_ai.py`)**: The main loop that orchestrates the Global Workspace, reasoning, and memory updates.
 
 ---
 
@@ -23,13 +23,14 @@ The AI's "mind" is built from several key components:
 Hizawye's behavior emerges from a continuous loop:
 
 1. **Goal-Oriented Focus**: The AI prioritizes its active goal (e.g., "Deepen understanding of 'philosophy'").
-2. **Reasoning**: Uses a local LLM (`ollama` with `llama3.2:3b`) to achieve its goal by prompting for definitions or breakdowns.
-3. **Validation & Learning**:
+2. **Parallel Reasoning**: Four thought threads propose actions (execute goal, switch strategy, explore, reflect, analogy).
+3. **Competition & Selection**: The Global Workspace scores proposals using relevance, emotional state, and learning history.
+4. **Execution & Learning**:
      - **Success**: Valid thoughts are stored in the memory graph, the goal is completed, and "pain" is reduced.
      - **Failure**: Malformed thoughts are rejected.
-     - **Strategic Failure**: Repeated failure increases "pain." If pain exceeds a threshold, the AI abandons the current approach, breaks the goal into sub-goals, and tries again.
-4. **Idle Wandering & Boredom**: Without active goals, the AI wanders its memory graph, increasing boredom.
-5. **Novelty Seeking**: High boredom triggers the creation of a new goal to expand knowledge, restarting the learning cycle.
+     - **Strategic Failure**: Repeated failure increases "pain." If pain exceeds a threshold, the AI switches strategy or decomposes the goal.
+5. **Idle Wandering & Boredom**: Without active goals, the AI wanders its memory graph, increasing boredom.
+6. **Novelty Seeking**: High boredom triggers a new goal, restarting the learning cycle.
 
 This dynamic drives the AI to evolve, balancing goals, frustration, and curiosity.
 
