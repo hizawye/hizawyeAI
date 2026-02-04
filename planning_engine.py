@@ -20,35 +20,52 @@ class PlanningEngine:
                 'description': 'Attempt to define concept directly in one step',
                 'complexity': 'simple',
                 'best_for': 'concrete concepts',
-                'llm_task': lambda concept: f"Define the concept '{concept}' in a single, concise, first-person sentence. Example: 'Creativity is the ability to connect disparate ideas in novel ways.'"
+                'llm_task': lambda concept: (
+                    f"Define the concept '{concept}' in ONE sentence (8-20 words). "
+                    "Avoid quotes, avoid markdown, and avoid first-person phrasing."
+                )
             },
             'analogical_reasoning': {
                 'name': 'Analogical Reasoning',
                 'description': 'Understand concept through analogy to known concepts',
                 'complexity': 'moderate',
                 'best_for': 'abstract concepts with familiar parallels',
-                'llm_task': lambda concept: f"Explain '{concept}' by drawing an analogy to a simpler, more concrete concept. Format: '{concept} is like [simpler concept] because...'"
+                'llm_task': lambda concept: (
+                    f"Explain '{concept}' by analogy. Output exactly ONE sentence in the format: "
+                    f"\"{concept} is like <simpler concept> because <reason>.\" "
+                    "No quotes, no markdown."
+                )
             },
             'bottom_up_composition': {
                 'name': 'Bottom-Up Composition',
                 'description': 'Build understanding from simpler components',
                 'complexity': 'moderate',
                 'best_for': 'composite concepts',
-                'llm_task': lambda concept: f"Identify 2-3 foundational sub-concepts that compose '{concept}'. Output as JSON array: [\"sub1\", \"sub2\"]"
+                'llm_task': lambda concept: (
+                    f"Identify 2-3 foundational sub-concepts that compose '{concept}'. "
+                    "Return a JSON array of strings ONLY. No prose, no markdown."
+                )
             },
             'top_down_decomposition': {
                 'name': 'Top-Down Decomposition',
                 'description': 'Break complex concept into parts',
                 'complexity': 'moderate',
                 'best_for': 'complex, multifaceted concepts',
-                'llm_task': lambda concept: f"Break '{concept}' into 3 distinct aspects or dimensions. Output as JSON array: [\"aspect1\", \"aspect2\", \"aspect3\"]"
+                'llm_task': lambda concept: (
+                    f"Break '{concept}' into exactly 3 distinct aspects or dimensions. "
+                    "Return a JSON array of strings ONLY. No prose, no markdown."
+                )
             },
             'contextual_synthesis': {
                 'name': 'Contextual Synthesis',
                 'description': 'Understand concept through its relationships',
                 'complexity': 'complex',
                 'best_for': 'relational concepts',
-                'llm_task': lambda concept, neighbors: f"Define '{concept}' in relation to these connected concepts: {neighbors}. Show how '{concept}' bridges or differs from them."
+                'llm_task': lambda concept, neighbors: (
+                    f"Define '{concept}' in relation to these connected concepts: {neighbors}. "
+                    "Use at most two sentences and mention at least two neighbors. "
+                    "No markdown."
+                )
             }
         }
 
@@ -191,7 +208,7 @@ class PlanningEngine:
         invalid_phrases = [
             "system instruction", "your task", "your output", "define the concept",
             "direct fulfillment", "echo instructions", "first-person realization",
-            "example:", "as a thought synthesizer"
+            "example:", "as a thought synthesizer", "output rules", "additional constraints"
         ]
 
         is_invalid = (
@@ -218,12 +235,13 @@ class PlanningEngine:
 
         try:
             # Extract JSON array from response
-            json_start = llm_response.find('[')
-            json_end = llm_response.rfind(']') + 1
+            response = self._strip_code_fences(llm_response)
+            json_start = response.find('[')
+            json_end = response.rfind(']') + 1
             if json_start == -1 or json_end == 0:
                 raise ValueError("No JSON array found")
 
-            json_str = llm_response[json_start:json_end]
+            json_str = response[json_start:json_end]
             raw_concepts = json.loads(json_str)
 
             # Flatten nested arrays
@@ -254,6 +272,15 @@ class PlanningEngine:
             if clean_thought:
                 return clean_thought
         return llm_response
+
+    def _strip_code_fences(self, text):
+        """Strip markdown code fences if present."""
+        if "```" not in text:
+            return text
+        parts = text.split("```")
+        if len(parts) >= 2:
+            return parts[1].strip()
+        return text
 
     def _get_timestamp(self):
         """Get current timestamp for goal tracking."""

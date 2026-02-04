@@ -2,33 +2,66 @@ import json
 import random
 import os
 import signal
+from collections import deque
 from memory import MemoryGraph
 from emotional_system import EmotionalSystem
 from learning_tracker import LearningTracker
 from planning_engine import PlanningEngine
-from global_workspace import GlobalWorkspaceSync
+from workspace import Workspace
+from input_stream import SimulatedInputStream
 from analytics_engine import AnalyticsEngine
+from modules import (
+    GoalPlannerModule,
+    ExplorationModule,
+    ReflectionModule,
+    PatternRecognitionModule,
+    PerceptionModule,
+    MemoryModule,
+    EmotionModule,
+)
 from log import setup_logger
 import ollama
 
 # Initialize the logger
 logger = setup_logger()
 
+SYSTEM_PROMPT = (
+    "You are a concise reasoning engine. "
+    "Follow the user's task exactly and return only the requested output. "
+    "Do not include preambles, explanations, or markdown."
+)
+
+OUTPUT_RULES = (
+    "Return only the answer. No preamble. No markdown. No quotes unless requested."
+)
+
 class HizawyeAI:
     def __init__(self, mind_directory="hizawye_mind"):
-        logger.info("Hizawye AI consciousness initializing with advanced architecture.")
+        logger.info("Hizawye AI consciousness initializing with GNW architecture.")
         self.mind_directory = mind_directory
         self.beliefs = {}
         self.goals = {'active_goals': [], 'completed_goals': []}
         self.current_focus = None
         self.keep_running = True
+        self.recent_actions = deque(maxlen=10)
+        self.recent_explores = deque(maxlen=5)
 
         # Initialize new subsystems
         self.memory = MemoryGraph(mind_directory=self.mind_directory)
         self.emotions = EmotionalSystem(mind_directory=self.mind_directory)
         self.learner = LearningTracker(mind_directory=self.mind_directory)
         self.planner = PlanningEngine(self.memory, self.emotions, self.learner)
-        self.workspace = GlobalWorkspaceSync(self.memory, self.emotions, self.learner, self.planner)
+        self.input_stream = SimulatedInputStream()
+        self.modules = [
+            GoalPlannerModule(self.planner, self.emotions),
+            ExplorationModule(self.memory, self.emotions),
+            ReflectionModule(self.learner, self.emotions),
+            PatternRecognitionModule(self.memory, self.emotions),
+            PerceptionModule(self.input_stream, self.memory),
+            MemoryModule(self.memory),
+            EmotionModule(self.emotions),
+        ]
+        self.workspace = Workspace(self.modules)
         self.analytics = AnalyticsEngine(mind_directory=self.mind_directory)
 
         self.load_mind()
@@ -54,7 +87,7 @@ class HizawyeAI:
             self.emotions.load_state()
             self.learner.load_history()
 
-            logger.info("Mind loaded successfully with advanced architecture.")
+            logger.info("Mind loaded successfully with GNW architecture.")
         except Exception as e:
             logger.error(f"Fatal error loading mind file: {e}. Shutting down.", exc_info=True)
             print(f"Error loading mind file: {e}. You may need to run 'birth.py' to create a fresh mind.")
@@ -83,16 +116,23 @@ class HizawyeAI:
         self.learner.save_history()
 
     def _create_simple_prompt(self, task_details):
-        """Assembles a very direct and simple prompt."""
-        prompt = f"System Instruction: You are a thought synthesizer. Your output must be ONLY the direct fulfillment of the task. Do not be conversational. Do not echo instructions.\n\nTask: {task_details}"
+        """Assembles a direct prompt with strict output rules."""
+        prompt = f"Task: {task_details}\nOutput rules: {OUTPUT_RULES}"
         return prompt
 
     def reason_with_llm(self, prompt):
-        """Uses the LLM to process the rich context from the global workspace."""
+        """Uses the LLM to process the rich context from the workspace."""
         logger.info(f"Reasoning with LLM.")
         print(f"\n🤔 [Hizawye is reasoning]...\n--- PROMPT ---\n{prompt}\n--------------")
         try:
-            response = ollama.chat(model='llama3.2:3b', messages=[{'role': 'user', 'content': prompt}], options={'temperature': 0.5})
+            response = ollama.chat(
+                model='llama3.2:3b',
+                messages=[
+                    {'role': 'system', 'content': SYSTEM_PROMPT},
+                    {'role': 'user', 'content': prompt}
+                ],
+                options={'temperature': 0.5}
+            )
             thought = response['message']['content'].strip()
             logger.info(f"LLM thought received: {thought}")
             print(f"💡 [Hizawye's thought]: {thought}")
@@ -101,8 +141,51 @@ class HizawyeAI:
             logger.error(f"Error communicating with LLM: {e}", exc_info=True)
             return "I feel disconnected."
 
+    def _compute_attention_gain(self):
+        """Compute attention gain for workspace competition based on emotional state."""
+        total_pain = self.emotions.get_total_pain()
+        total_curiosity = self.emotions.get_total_curiosity()
+        gain = 1.0 + (total_curiosity - total_pain) / 200.0
+        return max(0.6, min(1.4, gain))
+
+    def _compute_exploration_allowed(self):
+        """Gate exploration when goal focus is strong."""
+        drives = self.emotions.compute_drive_vector()
+        focus_drive = drives['focus'] / 100.0
+        boredom = self.emotions.get_total_boredom()
+        if self.goals['active_goals'] and focus_drive > 0.6 and boredom < 60:
+            return False
+        return True
+
+    def _compute_perception_scale(self):
+        """Scale perceptual salience when focus is strong."""
+        drives = self.emotions.compute_drive_vector()
+        focus_drive = drives['focus'] / 100.0
+        if self.goals['active_goals'] and focus_drive > 0.7:
+            return 0.6
+        return 1.0
+
+    def _record_action(self, action_type, payload):
+        """Record recent actions to reduce repetitive loops."""
+        concept = None
+        if action_type in {"goal_execute", "goal_switch"}:
+            concept = payload.get("concept") or payload.get("goal", {}).get("concept")
+        elif action_type == "explore":
+            concept = payload.get("target_concept")
+        elif action_type == "percept":
+            concept = payload.get("concept")
+        elif action_type == "analogy":
+            concept_pair = payload.get("concept_pair")
+            if concept_pair:
+                concept = "↔".join(concept_pair)
+
+        record = {"type": action_type, "concept": concept}
+        self.recent_actions.append(record)
+        if action_type == "explore" and concept:
+            self.recent_explores.append(concept)
+
     def live(self):
-        """The main processing loop for the AI using Global Workspace architecture."""
+        """The main processing loop for the AI using GNW architecture."""
         def stop_handler(signum, frame):
             if self.keep_running:
                 logger.info("Shutdown signal received. Preparing for graceful shutdown.")
@@ -111,8 +194,8 @@ class HizawyeAI:
 
         signal.signal(signal.SIGINT, stop_handler)
 
-        logger.info("Hizawye AI is now live with parallel consciousness. Main loop started.")
-        print("--- Hizawye AI is now active (Advanced Architecture). Press Ctrl+C to stop safely. ---")
+        logger.info("Hizawye AI is now live with GNW workspace. Main loop started.")
+        print("--- Hizawye AI is now active (GNW Architecture). Press Ctrl+C to stop safely. ---")
 
         # Initialize analytics session
         self.analytics.start_session()
@@ -145,15 +228,20 @@ class HizawyeAI:
             # Convert legacy goals to new format if needed
             self._migrate_legacy_goals()
 
-            # Update global workspace context
+            # Update workspace context
             self.workspace.update_context(
                 active_goals=self.goals['active_goals'],
                 current_focus=self.current_focus,
-                cycle=cycle_count
+                cycle=cycle_count,
+                attention_gain=self._compute_attention_gain(),
+                exploration_allowed=self._compute_exploration_allowed(),
+                perception_scale=self._compute_perception_scale(),
+                recent_explores=list(self.recent_explores),
+                recent_actions=list(self.recent_actions),
             )
 
-            # Run global workspace cycle (parallel thought competition)
-            winning_proposal = self.workspace.cycle()
+            # Run GNW workspace cycle (competition + ignition)
+            winning_content = self.workspace.cycle()
 
             # Track emotional state every cycle
             self.analytics.record_emotional_state(
@@ -162,16 +250,18 @@ class HizawyeAI:
             )
 
             # Track workspace competition
-            if hasattr(self.workspace.workspace, 'last_proposals'):
+            if getattr(self.workspace, 'last_proposals', None) is not None:
                 self.analytics.record_proposal_competition(
                     cycle=cycle_count,
-                    proposals=self.workspace.workspace.last_proposals,
-                    winner=winning_proposal
+                    proposals=self.workspace.last_proposals,
+                    winner=self.workspace.last_winner_proposal
                 )
 
-            if winning_proposal:
-                # Execute the winning proposal
-                mind_changed = self._execute_proposal(winning_proposal)
+            if winning_content:
+                # Execute the ignited workspace content
+                mind_changed = self._execute_workspace_content(winning_content)
+                if winning_content.ignited:
+                    self._record_action(winning_content.type, winning_content.payload)
             else:
                 # No proposals (shouldn't happen often)
                 logger.warning("No proposals generated in workspace cycle")
@@ -246,29 +336,36 @@ class HizawyeAI:
 
         self.goals['active_goals'] = migrated
 
-    def _execute_proposal(self, proposal):
-        """Execute the winning proposal from the global workspace."""
-        action_type = proposal.action_type
-        payload = proposal.payload
+    def _execute_workspace_content(self, content):
+        """Execute ignited workspace content."""
+        if not content.ignited:
+            logger.info("Workspace content persisted without ignition; skipping execution.")
+            return False
+
+        action_type = content.type
+        payload = content.payload
         mind_changed = False
 
-        logger.info(f"Executing proposal: {action_type}")
+        logger.info(f"Executing workspace content: {action_type}")
         print(f"\n🧠 [Conscious Action: {action_type}]")
 
-        if action_type == 'execute_goal':
-            mind_changed = self._execute_goal_action(payload['goal'])
+        if action_type == "goal_execute":
+            mind_changed = self._execute_goal_action(payload["goal"])
 
-        elif action_type == 'switch_strategy':
+        elif action_type == "goal_switch":
             mind_changed = self._switch_strategy_action(payload)
 
-        elif action_type == 'explore':
-            mind_changed = self._explore_action(payload['target_concept'])
+        elif action_type == "explore":
+            mind_changed = self._explore_action(payload["target_concept"])
 
-        elif action_type == 'reflect':
-            mind_changed = self._reflect_action(payload['trigger'])
+        elif action_type == "reflect":
+            mind_changed = self._reflect_action(payload["trigger"])
 
-        elif action_type == 'explore_analogy':
+        elif action_type == "analogy":
             mind_changed = self._explore_analogy_action(payload)
+
+        elif action_type == "percept":
+            mind_changed = self._percept_action(payload)
 
         return mind_changed
 
@@ -321,6 +418,15 @@ class HizawyeAI:
             context={'attempts': goal['attempts']}
         )
 
+        # Record analytics for concept learning attempts
+        self.analytics.record_concept_learned(
+            concept=concept,
+            strategy=strategy,
+            success=success,
+            pain_cost=pain_delta,
+            attempts=goal['attempts']
+        )
+
         return True  # Mind changed
 
     def _switch_strategy_action(self, payload):
@@ -353,6 +459,27 @@ class HizawyeAI:
                 self.goals['active_goals'].insert(0, new_goal)
                 print(f"📌 Created goal to understand '{target_concept}'")
                 return True
+
+        return False
+
+    def _percept_action(self, payload):
+        """Handle a perceptual event from the simulated input stream."""
+        concept = payload.get("concept")
+        if not concept:
+            return False
+
+        self.current_focus = concept
+        print(f"👁️ Perceived concept: '{concept}'")
+
+        if not self.memory.graph.has_node(concept):
+            self.memory.add_node(concept)
+
+        node_data = self.memory.graph.nodes[concept]
+        if not node_data.get("description"):
+            new_goal = self.planner.create_goal_for_concept(concept)
+            self.goals["active_goals"].insert(0, new_goal)
+            print(f"📌 Created goal to understand perceived concept '{concept}'")
+            return True
 
         return False
 

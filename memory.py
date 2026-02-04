@@ -2,6 +2,8 @@ import networkx as nx
 import json
 import os
 import random
+import math
+from datetime import datetime, timezone
 # --- NEW: Force a non-interactive backend for matplotlib ---
 # This must be done BEFORE importing pyplot
 import matplotlib
@@ -38,8 +40,25 @@ class MemoryGraph:
 
     def add_connection(self, node1, node2, relationship="is_related_to"):
         """Connects two concepts."""
-        self.graph.add_edge(node1, node2, label=relationship)
-        logger.info(f"Connection created between '{node1}' and '{node2}' with relationship '{relationship}'.")
+        now = datetime.now(timezone.utc).isoformat()
+        if self.graph.has_edge(node1, node2):
+            edge_data = self.graph.get_edge_data(node1, node2) or {}
+            weight = int(edge_data.get("weight", 1)) + 1
+            label = relationship or edge_data.get("label", "is_related_to")
+        else:
+            weight = 1
+            label = relationship
+
+        self.graph.add_edge(
+            node1,
+            node2,
+            label=label,
+            weight=weight,
+            last_updated=now
+        )
+        logger.info(
+            f"Connection created between '{node1}' and '{node2}' with relationship '{label}'."
+        )
 
     def find_connected_nodes(self, node_name):
         """Finds all nodes connected to a given node."""
@@ -319,29 +338,219 @@ class MemoryGraph:
             logger.warning("No valid memory file found. The graph will be empty.")
             self.graph.clear()
             
-    def visualize(self):
+    def visualize(self, current_focus=None, label_top_k=12, overview_top_k=20):
         """Creates a visual representation of the memory graph and saves it to a file."""
         if not self.graph.nodes():
             print("Cannot visualize an empty graph.")
             return
 
         print("Generating memory visualization...")
-        plt.figure(figsize=(20, 16)) # Make the plot larger for more complex graphs
-        pos = nx.spring_layout(self.graph, k=0.9, iterations=60)
-        
-        nx.draw(self.graph, pos, with_labels=True, node_color='skyblue', node_size=4000, 
-                edge_color='gray', font_size=12, font_weight='bold', width=2)
-        
-        edge_labels = nx.get_edge_attributes(self.graph, 'label')
-        nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels, font_color='red', font_size=10)
-        
+
+        attention_scores = self.compute_attention_scores(current_focus=current_focus)
+        scores = list(attention_scores.values()) if attention_scores else [0.0]
+        min_score = min(scores)
+        max_score = max(scores)
+        score_range = max(max_score - min_score, 1e-6)
+
+        def scale_score(score, min_size=1200, max_size=5200):
+            normalized = (score - min_score) / score_range
+            return min_size + normalized * (max_size - min_size)
+
+        known_nodes = {
+            node for node, data in self.graph.nodes(data=True)
+            if data.get('description')
+        }
+
+        top_nodes = sorted(
+            attention_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:max(3, min(label_top_k, len(self.graph.nodes())))]
+        top_set = {node for node, _ in top_nodes}
+
+        colors = {
+            "known": "#4CAF50",
+            "unknown": "#FFB74D",
+            "top": "#1976D2",
+        }
+
+        node_sizes = []
+        node_colors = []
+        node_edgecolors = []
+        node_edgewidths = []
+        for node in self.graph.nodes():
+            score = attention_scores.get(node, 0.0)
+            size = scale_score(score)
+            if node in top_set:
+                size *= 1.25
+                node_colors.append(colors["top"])
+            elif node in known_nodes:
+                node_colors.append(colors["known"])
+            else:
+                node_colors.append(colors["unknown"])
+            node_sizes.append(size)
+
+            if current_focus and node == current_focus:
+                node_edgecolors.append("#FFD54F")
+                node_edgewidths.append(3.0)
+            else:
+                node_edgecolors.append("#263238")
+                node_edgewidths.append(1.5)
+
+        if len(self.graph.nodes()) <= 30:
+            label_nodes = set(self.graph.nodes())
+        else:
+            label_nodes = set(top_set)
+
+        if current_focus:
+            label_nodes.add(current_focus)
+
+        labels = {node: node for node in label_nodes}
+
+        plt.figure(figsize=(20, 16))
+        pos = nx.spring_layout(self.graph, k=0.9, iterations=80, seed=7)
+
+        nx.draw_networkx_nodes(
+            self.graph,
+            pos,
+            node_color=node_colors,
+            node_size=node_sizes,
+            edgecolors=node_edgecolors,
+            linewidths=node_edgewidths
+        )
+        edge_widths = self._edge_widths(self.graph)
+        nx.draw_networkx_edges(
+            self.graph,
+            pos,
+            edge_color="#90A4AE",
+            width=edge_widths,
+            alpha=0.8
+        )
+        nx.draw_networkx_labels(
+            self.graph,
+            pos,
+            labels=labels,
+            font_size=11,
+            font_weight="bold"
+        )
+
+        edge_labels = {
+            (u, v): data.get('label', '')
+            for u, v, data in self.graph.edges(data=True)
+            if u in label_nodes and v in label_nodes
+        }
+        nx.draw_networkx_edge_labels(
+            self.graph,
+            pos,
+            edge_labels=edge_labels,
+            font_color="#C62828",
+            font_size=9
+        )
+
+        from matplotlib.patches import Patch
+        legend_items = [
+            Patch(facecolor=colors["top"], edgecolor="#263238", label="Top attention"),
+            Patch(facecolor=colors["known"], edgecolor="#263238", label="Known concept"),
+            Patch(facecolor=colors["unknown"], edgecolor="#263238", label="Unknown concept"),
+        ]
+        if current_focus:
+            legend_items.append(Patch(facecolor="#FFD54F", edgecolor="#263238", label="Current focus"))
+        plt.legend(handles=legend_items, loc="upper right", frameon=True)
+
         plt.title("Hizawye's Memory Map", size=24)
-        
-        # Save the figure instead of showing it
+        plt.axis("off")
+
         output_path = os.path.join(self.mind_directory, "memory_map.png")
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        plt.close() # Close the figure to free up memory
+        plt.close()
         print(f"✅ Memory map saved as an image to: {output_path}")
+
+        if overview_top_k and len(self.graph.nodes()) > 0:
+            top_k = min(overview_top_k, len(self.graph.nodes()))
+            self._save_overview_map(attention_scores, top_k, current_focus)
+
+    def _edge_widths(self, graph):
+        widths = []
+        for _, _, data in graph.edges(data=True):
+            weight = max(1, int(data.get("weight", 1)))
+            width = 1.0 + min(4.0, math.log1p(weight))
+
+            last_updated = data.get("last_updated")
+            if last_updated:
+                try:
+                    updated = datetime.fromisoformat(last_updated)
+                    age_days = (datetime.now(timezone.utc) - updated).days
+                    recency_factor = max(0.5, 1.0 - (age_days / 30.0))
+                    width *= recency_factor
+                except ValueError:
+                    pass
+
+            widths.append(width)
+        return widths
+
+    def _save_overview_map(self, attention_scores, overview_top_k, current_focus=None):
+        top_nodes = sorted(
+            attention_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:overview_top_k]
+        node_set = {node for node, _ in top_nodes}
+        if current_focus:
+            node_set.add(current_focus)
+
+        subgraph = self.graph.subgraph(node_set).copy()
+
+        if not subgraph.nodes():
+            return
+
+        labels = {node: node for node in subgraph.nodes()}
+        plt.figure(figsize=(14, 12))
+        pos = nx.spring_layout(subgraph, k=0.8, iterations=60, seed=11)
+
+        node_colors = []
+        node_edgecolors = []
+        node_sizes = []
+        for node in subgraph.nodes():
+            if node in node_set:
+                node_colors.append("#1976D2")
+            else:
+                node_colors.append("#90A4AE")
+            node_sizes.append(2000)
+            if current_focus and node == current_focus:
+                node_edgecolors.append("#FFD54F")
+            else:
+                node_edgecolors.append("#263238")
+
+        nx.draw_networkx_nodes(
+            subgraph,
+            pos,
+            node_color=node_colors,
+            node_size=node_sizes,
+            edgecolors=node_edgecolors,
+            linewidths=1.5
+        )
+        edge_widths = self._edge_widths(subgraph)
+        nx.draw_networkx_edges(
+            subgraph,
+            pos,
+            edge_color="#90A4AE",
+            width=edge_widths,
+            alpha=0.9
+        )
+        nx.draw_networkx_labels(
+            subgraph,
+            pos,
+            labels=labels,
+            font_size=10,
+            font_weight="bold"
+        )
+
+        plt.title("Hizawye's Memory Map (Top Attention)", size=20)
+        plt.axis("off")
+        output_path = os.path.join(self.mind_directory, "memory_map_focus.png")
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"✅ Memory focus map saved as an image to: {output_path}")
 
     def create_default_mind(self):
         """Wipes the current graph and builds the standard initial mind."""
@@ -383,6 +592,20 @@ if __name__ == '__main__':
     print("--- Running Memory Visualization/Creation Script ---")
     memory = MemoryGraph()
     memory.load_from_json()
+
+    current_focus = None
+    goals_path = os.path.join(memory.mind_directory, "goals.json")
+    if os.path.exists(goals_path):
+        try:
+            with open(goals_path, "r") as f:
+                goals_data = json.load(f)
+            active_goals = goals_data.get("active_goals", []) if isinstance(goals_data, dict) else []
+            if active_goals:
+                first_goal = active_goals[0]
+                if isinstance(first_goal, dict):
+                    current_focus = first_goal.get("concept")
+        except (json.JSONDecodeError, OSError):
+            current_focus = None
     
     if not memory.graph.nodes():
         print("No existing memory found. Creating a new, default mind state...")
@@ -391,5 +614,4 @@ if __name__ == '__main__':
     else:
         print("✅ Existing memory has been loaded.")
 
-    memory.visualize()
-
+    memory.visualize(current_focus=current_focus)

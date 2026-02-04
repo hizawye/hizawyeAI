@@ -81,19 +81,34 @@ class AnalyticsEngine:
         winner: Any
     ):
         """Track which threads compete and which wins."""
+        winner_sources = set()
+        if winner is not None:
+            if hasattr(winner, "sources") and isinstance(winner.sources, list):
+                winner_sources = set(winner.sources)
+            else:
+                winner_sources = {getattr(winner, "source", "unknown")}
+
         for proposal in proposals:
-            thread_name = getattr(proposal, "thread_type", None) or getattr(proposal, "source", "unknown")
+            sources = []
+            if hasattr(proposal, "sources") and isinstance(proposal.sources, list):
+                sources = proposal.sources
+            else:
+                sources = [
+                    getattr(proposal, "thread_type", None)
+                    or getattr(proposal, "source", "unknown")
+                ]
 
-            if thread_name not in self.session_data["workspace_competition"]:
-                self.session_data["workspace_competition"][thread_name] = {
-                    "wins": 0,
-                    "total_proposals": 0
-                }
+            for thread_name in sources:
+                if thread_name not in self.session_data["workspace_competition"]:
+                    self.session_data["workspace_competition"][thread_name] = {
+                        "wins": 0,
+                        "total_proposals": 0
+                    }
 
-            self.session_data["workspace_competition"][thread_name]["total_proposals"] += 1
+                self.session_data["workspace_competition"][thread_name]["total_proposals"] += 1
 
-            if proposal == winner:
-                self.session_data["workspace_competition"][thread_name]["wins"] += 1
+                if thread_name in winner_sources:
+                    self.session_data["workspace_competition"][thread_name]["wins"] += 1
 
     def record_concept_learned(
         self,

@@ -1,5 +1,37 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Analytics tracking for concept learning attempts (concepts learned + strategies used)
+- Improved memory visualization: attention-based sizing, focus highlight, overview map (`memory_map_focus.png`)
+- Behavior quality tuning: exploration gating, perception scaling under focus, repetition penalty
+
+### Changed
+- LLM prompts tightened with stricter output rules and parsing safeguards
+
+### Known Issues
+- Observed 2026-02-04: system can enter a repeated `explore` loop where the mind wanders among concepts without executing goals
+
+## [3.0.0] - 2026-02-04 - GNW Workspace
+
+### Major Features
+- GNW-style competition with evidence accumulation and attention gating
+- Ignition threshold with persistence/decay dynamics
+- Specialist modules for goals, exploration, reflection, perception, memory, and emotion
+- Simulated perceptual input stream
+- Broadcast-driven updates across modules
+
+### New Modules
+- `workspace.py` - GNW competition, ignition, persistence, and broadcast
+- `gnw_types.py` - Proposal and workspace type definitions
+- `input_stream.py` - Simulated input stream
+- `modules/` - Specialist module implementations
+
+### Changed
+- `hizawye_ai.py` rewired to GNW workspace and module-based proposals
+- Analytics competition tracking updated for GNW proposals
+
 ## [2.0.0] - 2026-02-04 - Advanced Consciousness
 
 ### Major Features
@@ -40,16 +72,6 @@
 ### Backward Compatibility
 - Legacy goals auto-migrate to new format
 - Existing minds fully supported
-
-## [Unreleased]
-
-### Changed
-- LLM model: `tinyllama` → `llama3.2:3b` for improved reasoning quality
-- Updated installation instructions in README
-- Refreshed README to reflect v2.0 architecture and workflow
-
-### Known Issues
-- Observed 2026-02-04: system can enter a repeated `explore` loop where the mind wanders among concepts without executing goals
 
 ## [1.0.0] - Initial Release
 

@@ -1,5 +1,37 @@
 # Decision Log
 
+## 2026-02-05 - Learning Analytics + Visualization Upgrade
+
+**Decision:** Record concept learning outcomes in analytics and improve memory visualization.
+
+**Rationale:**
+- Session summaries showed `0/0` concepts learned without explicit tracking
+- Visualization needed focus and attention cues for interpretability
+
+**Key Components:**
+- `hizawye_ai.py` - Record concept learning attempts in analytics
+- `memory.py` - Attention-based sizing, focus highlight, and top-attention map
+
+## 2026-02-04 - GNW Refactor: Ignition + Specialist Modules
+
+**Decision:** Replace the fixed-thread Global Workspace with a GNW-style workspace.
+
+**Rationale:**
+- GNW provides ignition, persistence, and broadcast dynamics closer to modern GWT variants
+- Specialist modules enable evidence accumulation and attention gating
+- Simulated input stream introduces perceptual salience for competition
+
+**Key Components:**
+- `workspace.py` - GNW competition, ignition, persistence, and broadcast
+- `gnw_types.py` - Proposal and workspace content/state definitions
+- `input_stream.py` - Simulated perceptual input
+- `modules/` - Specialist modules for goals, exploration, reflection, perception, memory, emotion
+
+**Files Changed:**
+- `hizawye_ai.py` - Rewired to GNW workspace and module execution
+- `analytics_engine.py` - Competition tracking updated for GNW proposals
+- Docs updated for GNW architecture
+
 ## 2026-02-04 - Model Upgrade: tinyllama → llama3.2:3b
 
 **Decision:** Switch LLM model from `tinyllama` to `llama3.2:3b`

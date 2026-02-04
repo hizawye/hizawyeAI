@@ -2,6 +2,28 @@
 
 ## ✅ Completed
 
+### GNW Workspace Architecture (v3.0)
+
+**Major Architectural Transformation:**
+- Replaced fixed-thread Global Workspace with GNW-style ignition and persistence
+- Introduced specialist modules that compete via evidence accumulation
+- Added simulated input stream to drive perceptual salience
+- Implemented broadcast updates across multiple subsystems
+- Added workspace persistence with decay dynamics
+
+**New Modules/Files:**
+- `workspace.py` - GNW competition, ignition, persistence, and broadcast
+- `gnw_types.py` - Proposal, workspace content/state, module interface
+- `input_stream.py` - Simulated input stream for perception
+- `modules/` - Specialist modules (goal planning, exploration, reflection, perception, memory, emotion)
+- Refactored `hizawye_ai.py` - GNW integration and action execution
+
+**Core Features:**
+- Evidence-based competition with attention gain and focus bias
+- Ignition threshold and persistence across cycles
+- Broadcast-driven updates in memory and emotion modules
+- Simulated perceptual events that can create new goals
+
 ### Advanced Consciousness Architecture (v2.0)
 
 **Major Architectural Transformation:**
@@ -29,17 +51,22 @@
 
 ## 🔄 Current State
 
-**Architecture Version:** 2.0 (Advanced Consciousness)
+**Architecture Version:** 3.0 (GNW Workspace)
 
 **Capabilities:**
+- GNW-style competition with evidence accumulation and attention gating
+- Ignition and persistence dynamics for workspace content
+- Simulated perceptual stream feeding percept proposals
 - 5 intelligent strategies (direct definition, analogical reasoning, bottom-up composition, top-down decomposition, contextual synthesis)
-- Parallel consciousness with 4 thought threads competing each cycle
 - Emotional intelligence influencing reasoning and strategy selection
 - Learning from past successes/failures to improve over time
 - Meta-cognition and self-reflection
 - Graph-aware memory with attention mechanisms
 - Working memory cache (Miller's 7±2 limit)
 - Analogy detection and pattern recognition
+- Analytics now track concept learning attempts and strategy usage
+- Memory visualization now highlights attention, focus, and top-attention overview map
+- Behavior quality tuned with exploration gating and repetition penalties
 
 **Backward Compatibility:**
 - Existing minds auto-migrate legacy string goals → structured format
@@ -53,21 +80,21 @@
 ## 📋 Next Steps
 
 **Testing & Validation:**
-- Run with fresh mind to observe full architecture in action
-- Test migration of existing minds
-- Observe meta-cognition and learning patterns over extended runtime
+- Run with fresh mind to observe GNW ignition and persistence dynamics
+- Validate attention gain tuning and ignition threshold stability
+- Observe module responses to broadcast across cycles
 - Validate strategy adaptation over multiple cycles
-- Reproduce and diagnose the `explore` loop; inspect proposal scoring and boredom/curiosity thresholds
+- Reproduce and diagnose any repeated `explore` loops with new competition scores
+- Confirm session summaries report non-zero concepts learned after goal execution
 
 **Potential Enhancements:**
-- Visualization of Global Workspace competition (which threads win over time)
+- Visualization of GNW ignition events and persistence durations
 - Enhanced memory graph visualization showing attention scores
 - Strategy effectiveness dashboard
 - Emotional state timeline
 - Export learning insights to human-readable report
 
 **Performance Optimization:**
-- Profile asyncio overhead in Global Workspace
 - Optimize attention score computation for large graphs
 - Consider caching strategy scores between cycles
 

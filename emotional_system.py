@@ -129,7 +129,7 @@ class EmotionalSystem:
             modulations.append("Attempt a sophisticated, nuanced synthesis.")
 
         if modulations:
-            enhanced_prompt = base_prompt + "\n\nEmotional context: " + " ".join(modulations)
+            enhanced_prompt = base_prompt + "\n\nAdditional constraints: " + " ".join(modulations)
             return enhanced_prompt
 
         return base_prompt

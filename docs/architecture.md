@@ -1,40 +1,39 @@
-# Architecture (v2.0)
+# Architecture (v3.0)
 
 ## System Overview
 
-Hizawye AI v2.0 is an advanced consciousness simulation based on Global Workspace Theory:
+Hizawye AI v3.0 implements a Dehaene-style Global Neuronal Workspace (GNW) pattern:
 
-1. **Parallel thought processing** - 4 concurrent thought threads compete each cycle
-2. **Emotional intelligence** - Multi-dimensional drives influence reasoning and strategy selection
-3. **Meta-learning** - System learns from successes/failures to improve strategy selection
-4. **Rich memory context** - Attention scoring, working memory, and analogy detection
-5. **Adaptive planning** - 5 intelligent strategies with dynamic selection
+1. **Specialist modules** generate proposals (goals, exploration, reflection, perception).
+2. **Competition** aggregates evidence and applies attention gating.
+3. **Ignition** occurs when a proposal exceeds threshold.
+4. **Persistence** keeps workspace content active with decay.
+5. **Broadcast** updates multiple modules each cycle.
 
-## Core Architecture
-
-### Global Workspace Pattern
-
-The system uses Global Workspace Theory for consciousness simulation:
+## GNW Workspace Pattern
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│           Global Workspace (Conscious Broadcast)        │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │
-│  │ Thread 1│ │ Thread 2│ │ Thread 3│ │ Thread 4│       │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘       │
-│       └──────────┴──────────┴──────────┴────────┘      │
-│                      ↓ ↓ ↓ ↓                          │
-│                  Winning Proposal                      │
-│                      ↓ ↓ ↓ ↓                          │
-│              Proposal Execution System                  │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                GNW Workspace (Ignition)                  │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐  │
+│  │ Goals  │ │ Explore│ │Reflect │ │Percept │ │Memory  │  │
+│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘  │
+│      └─────────┴─────────┴─────────┴─────────┴────────┘  │
+│                       ↓ Evidence/Salience                │
+│                 Competition + Attention Gate             │
+│                       ↓ Ignition                         │
+│                Workspace Content + Persistence           │
+│                       ↓ Broadcast                        │
+│            Multiple Modules Update & Execute             │
+└──────────────────────────────────────────────────────────┘
 ```
 
 Each cycle:
-1. 4 parallel thought threads generate proposals
-2. Proposals compete based on relevance, emotion, and learning history
-3. Winning proposal is executed
-4. System learns from outcome
+1. Modules emit proposals (with evidence, salience, novelty, urgency).
+2. Workspace aggregates evidence and scores proposals.
+3. If the winner exceeds ignition threshold, it becomes conscious content.
+4. Content persists with decay even without new ignition.
+5. Broadcast updates modules and triggers execution.
 
 ## Core Components
 
@@ -48,106 +47,94 @@ Each cycle:
 - `emotions` - EmotionalSystem instance
 - `learner` - LearningTracker instance
 - `planner` - PlanningEngine instance
-- `workspace` - GlobalWorkspaceSync instance
+- `workspace` - GNW Workspace instance
 - `analytics` - AnalyticsEngine instance
 
 **Key Methods:**
-- `live()` - Main processing loop with Global Workspace integration
-- `_execute_proposal()` - Execute winning thought proposal
+- `live()` - Main processing loop with GNW workspace integration
+- `_execute_workspace_content()` - Execute ignited content
 - `_migrate_legacy_goals()` - Convert old goal format to new structure
 - `save_mind()` / `load_mind()` - Persistence with all subsystems
 
-### GlobalWorkspace Class (`global_workspace.py`)
+### Workspace (`workspace.py`)
 
-Manages parallel thought competition:
-- 4 concurrent thought threads using asyncio
-- Thought types: goal execution, strategy switching, exploration, reflection, analogy
-- Proposal scoring based on relevance, emotion, and learning history
-- Returns winning proposal each cycle
+GNW core:
+- Competition using evidence + salience + novelty + urgency
+- Attention gain and focus bias
+- Ignition threshold with persistence decay
+- Broadcast to all modules each cycle
 
-### EmotionalSystem Class (`emotional_system.py`)
+### GNW Types (`gnw_types.py`)
 
-Multi-dimensional drive modeling:
-- **Pain:** Existential and conceptual (threshold triggers strategy changes)
-- **Curiosity:** Drives exploration and knowledge expansion
-- **Boredom:** Increases with repetition, decreases with novelty
-- **Confidence:** Builds from successes, decreases on failures
-- **Confusion:** Rises with repeated failures, cleared by reflection
+- `Proposal` - Module proposal with evidence metrics
+- `WorkspaceContent` - Ignited or persistent content
+- `WorkspaceState` - Current workspace + history
+- `Module` - Specialist module interface
 
-### LearningTracker Class (`learning_tracker.py`)
+### Specialist Modules (`modules/`)
 
-Bayesian meta-learning system:
-- Tracks strategy effectiveness per concept type
-- Updates beliefs based on success/failure outcomes
-- Generates insights through reflection
+- `GoalPlannerModule` - Goal execution or strategy switching
+- `ExplorationModule` - Idle exploration proposals
+- `ReflectionModule` - Meta-cognitive reflection proposals
+- `PatternRecognitionModule` - Analogy exploration proposals
+- `PerceptionModule` - Simulated perceptual input proposals
+- `MemoryModule` - Updates working memory on broadcast
+- `EmotionModule` - Updates emotional state on broadcast
+
+### Simulated Input (`input_stream.py`)
+
+- `SimulatedInputStream` - Probabilistic event stream
+- `InputEvent` - Event data and salience
+
+### EmotionalSystem (`emotional_system.py`)
+
+- Multi-dimensional drives (pain, curiosity, boredom, confidence, confusion)
+- Produces drive vector used for attention gain and module proposals
+
+### LearningTracker (`learning_tracker.py`)
+
+- Bayesian-style tracking of strategy effectiveness
 - Influences strategy selection in PlanningEngine
 
-### PlanningEngine Class (`planning_engine.py`)
+### PlanningEngine (`planning_engine.py`)
 
-Intelligent goal decomposition and strategy selection:
+- 5 strategies (direct, analogy, bottom-up, top-down, synthesis)
+- Uses emotional state + learning history for strategy selection
 
-**5 Strategies:**
-1. **Direct Definition (strategy 0):** Simple concept explanation
-2. **Analogical Reasoning (strategy 1):** Pattern-based understanding using analogies
-3. **Bottom-up Composition (strategy 2):** Build from known components
-4. **Top-down Decomposition (strategy 3):** Break down into simpler parts
-5. **Contextual Synthesis (strategy 4):** Integrate multiple contexts
+### MemoryGraph (`memory.py`)
 
-**Strategy Selection:**
-- Uses LearningTracker data for informed choices
-- Considers emotional state (high pain → simpler strategies)
-- Adapts based on previous attempts
+- Attention scoring and working memory cache
+- Rich context retrieval and analogy detection
 
-### MemoryGraph Class (`memory.py`)
+### AnalyticsEngine (`analytics_engine.py`)
 
-Enhanced memory system:
+- Records competition outcomes and emotional timeline
+- Tracks module wins and proposal frequency
 
-**New Features:**
-- **Attention Scoring:** PageRank + spreading activation + recency
-- **Working Memory:** LRU cache (7±2 items) of active concepts
-- **Rich Context:** Comprehensive context including relationships, paths, semantic density
-- **Analogy Detection:** Structural similarity between concepts
-- **Intelligent Exploration:** Attention-based target selection
+## Workspace Content Types
 
-**Core Operations:**
-- Concept/relationship management
-- JSON persistence
-- Attention score computation
-- Working memory management
-- Context retrieval
-- Analogy finding
-
-### AnalyticsEngine Class (`analytics_engine.py`)
-
-Session tracking and reporting:
-- Tracks cycles, successful concepts, failures, emotional states
-- Records proposal competition outcomes
-- Generates summary statistics
-- Exports to JSON for analysis
-
-## Thought Proposal Types
-
-1. **execute_goal:** Pursue active goal using current strategy
-2. **switch_strategy:** Change approach after repeated failure
-3. **explore:** Wander to new concept (idle mode)
-4. **reflect:** Meta-cognition and pattern analysis
-5. **explore_analogy:** Investigate structural similarities
+1. `goal_execute` - Execute an active goal
+2. `goal_switch` - Switch strategies after failure
+3. `explore` - Explore a new concept
+4. `reflect` - Meta-cognitive reflection
+5. `analogy` - Explore analogies between concepts
+6. `percept` - Process simulated perceptual input
 
 ## Behavior Loop
 
 ```
-Initialize → Update Context → Global Workspace Cycle → Execute Proposal
-     ↑                                                                  ↓
-     └────────────────────── Save if Changed ←───────────────────────────┘
+Initialize → Update Context → GNW Cycle → Execute Ignited Content
+     ↑                                                     ↓
+     └────────────────── Save if Changed ←─────────────────┘
 ```
 
 **Per Cycle:**
 1. Update working memory with current focus
 2. Migrate legacy goals if needed
-3. Update Global Workspace context
-4. Run parallel thought competition (4 threads)
-5. Track emotional state and workspace outcomes
-6. Execute winning proposal
+3. Update GNW context (including attention gain)
+4. Run competition + ignition + persistence
+5. Broadcast content to modules
+6. Execute ignited content only
 7. Decay emotions periodically (every 5 cycles)
 8. Save mind if changed
 
@@ -156,34 +143,13 @@ Initialize → Update Context → Global Workspace Cycle → Execute Proposal
 - `beliefs.json` - Concept beliefs
 - `goals.json` - Active/completed goals (structured format)
 - `memory_graph.json` - Knowledge graph
-- `emotions.json` - Emotional state
-- `learning_history.json` - Strategy effectiveness data
+- `emotional_state.json` - Emotional state
+- `strategy_history.json` - Strategy effectiveness data
 - `analytics/session_*.json` - Session analytics
-
-## Goal Structure
-
-```json
-{
-  "concept": "example_concept",
-  "strategy": 0,
-  "strategy_name": "Direct Definition",
-  "attempts": 0,
-  "created_at": "timestamp"
-}
-```
-
-## Strategy Selection Heuristics
-
-- **Direct Definition:** Best for simple, concrete concepts
-- **Analogical Reasoning:** Effective for abstract concepts with known patterns
-- **Bottom-up Composition:** Works when components are well-understood
-- **Top-down Decomposition:** Preferred for complex, multi-layered concepts
-- **Contextual Synthesis:** Used when multiple related contexts exist
 
 ## Emotional Influences
 
-- **High pain:** Triggers strategy switching, simpler approaches
-- **High curiosity:** Increases exploration likelihood
-- **High boredom:** Promotes new goal creation
-- **Low confidence:** Boosts alternative strategies in competition
-- **High confusion:** Triggers reflection proposals
+- **High pain/confusion:** increases reflection proposals, simplifies strategies
+- **High curiosity:** boosts exploration salience
+- **High boredom:** increases exploration evidence
+- **Low confidence:** reduces goal execution urgency

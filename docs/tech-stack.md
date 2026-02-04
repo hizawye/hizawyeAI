@@ -25,12 +25,15 @@
 
 | File | Purpose |
 |------|---------|
-| `hizawye_ai.py` | Main AI implementation with Global Workspace |
+| `hizawye_ai.py` | Main AI implementation with GNW Workspace |
 | `memory.py` | Enhanced memory graph with attention scoring |
 | `log.py` | Logging setup |
 | `birth.py` | Mind initialization |
 | `wipe_memory.py` | Mind reset utility |
-| `global_workspace.py` | Parallel thought competition system |
+| `workspace.py` | GNW competition, ignition, and broadcast |
+| `gnw_types.py` | Proposal and workspace type definitions |
+| `input_stream.py` | Simulated input stream for perceptual salience |
+| `modules/` | Specialist modules for proposals and broadcast updates |
 | `emotional_system.py` | Multi-dimensional drive modeling |
 | `learning_tracker.py` | Strategy effectiveness tracking |
 | `planning_engine.py` | Goal decomposition and strategy selection |
@@ -46,8 +49,8 @@
   - `beliefs.json` - Concept beliefs
   - `goals.json` - Active/completed goals (structured format)
   - `memory_graph.json` - Knowledge graph
-  - `emotions.json` - Emotional state
-  - `learning_history.json` - Strategy effectiveness data
+  - `emotional_state.json` - Emotional state
+  - `strategy_history.json` - Strategy effectiveness data
   - `analytics/session_*.json` - Session analytics
 
 ## Development Tools
@@ -58,7 +61,7 @@
 
 ## Architecture
 
-- **Pattern:** Global Workspace Theory (consciousness simulation)
-- **Concurrency:** asyncio for parallel thought threads
+- **Pattern:** Global Neuronal Workspace (GNW) inspired competition and ignition
+- **Concurrency:** synchronous competition (no asyncio threads)
 - **Memory Model:** NetworkX graph with attention mechanisms
 - **Learning Model:** Bayesian updating of strategy effectiveness

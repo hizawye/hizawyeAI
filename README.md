@@ -4,17 +4,20 @@ Hizawye AI is a Python-based project designed to simulate a form of artificial c
 
 ---
 
-## Core Concepts (v2.0)
+## Core Concepts (v3.0)
 
 The AI's "mind" is built from several key components:
 
-- **Global Workspace (`global_workspace.py`)**: Four parallel thought threads generate competing proposals each cycle.
+- **GNW Workspace (`workspace.py`)**: Specialist modules compete; ignition and persistence govern conscious content.
+- **GNW Types (`gnw_types.py`)**: Proposal and workspace content/state definitions.
+- **Simulated Input (`input_stream.py`)**: Perceptual events provide salience for competition.
+- **Modules (`modules/`)**: Goal planning, exploration, reflection, perception, memory, emotion.
 - **Emotional System (`emotional_system.py`)**: Multi-dimensional drives (pain, curiosity, boredom, confidence, confusion) shape behavior.
 - **Learning Tracker (`learning_tracker.py`)**: Bayesian meta-learning that adapts strategy selection over time.
 - **Planning Engine (`planning_engine.py`)**: Five reasoning strategies with adaptive selection.
 - **Memory Graph (`memory.py`)**: NetworkX knowledge graph with attention scoring, working memory, and analogy detection.
 - **The Mind (`/hizawye_mind/`)**: JSON persistence for beliefs, goals, memory, emotions, and learning history.
-- **The Thinker (`hizawye_ai.py`)**: The main loop that orchestrates the Global Workspace, reasoning, and memory updates.
+- **The Thinker (`hizawye_ai.py`)**: The main loop that orchestrates GNW competition, reasoning, and memory updates.
 
 ---
 
@@ -22,15 +25,15 @@ The AI's "mind" is built from several key components:
 
 Hizawye's behavior emerges from a continuous loop:
 
-1. **Goal-Oriented Focus**: The AI prioritizes its active goal (e.g., "Deepen understanding of 'philosophy'").
-2. **Parallel Reasoning**: Four thought threads propose actions (execute goal, switch strategy, explore, reflect, analogy).
-3. **Competition & Selection**: The Global Workspace scores proposals using relevance, emotional state, and learning history.
+1. **Module Proposals**: Specialist modules propose actions (goal execute/switch, explore, reflect, analogy, percept).
+2. **Competition & Attention**: GNW aggregates evidence and applies attention gain and focus bias.
+3. **Ignition & Persistence**: Winning content ignites if above threshold, then persists with decay.
 4. **Execution & Learning**:
      - **Success**: Valid thoughts are stored in the memory graph, the goal is completed, and "pain" is reduced.
      - **Failure**: Malformed thoughts are rejected.
      - **Strategic Failure**: Repeated failure increases "pain." If pain exceeds a threshold, the AI switches strategy or decomposes the goal.
-5. **Idle Wandering & Boredom**: Without active goals, the AI wanders its memory graph, increasing boredom.
-6. **Novelty Seeking**: High boredom triggers a new goal, restarting the learning cycle.
+5. **Idle Wandering & Boredom**: Without active goals, exploration proposals compete for ignition.
+6. **Perceptual Salience**: Simulated inputs can ignite new goals and refocus attention.
 
 This dynamic drives the AI to evolve, balancing goals, frustration, and curiosity.
 
@@ -121,7 +124,8 @@ ollama pull llama3.2:3b
      python memory.py
      ```
 
-     This displays the current memory graph without modifying any data.
+     This generates `hizawye_mind/memory_map.png` plus a focused
+     `hizawye_mind/memory_map_focus.png` that highlights top-attention concepts.
 
 ---
 
