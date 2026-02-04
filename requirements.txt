@@ -1,3 +1,4 @@
 ollama
 networkx
 matplotlib
+pytest
