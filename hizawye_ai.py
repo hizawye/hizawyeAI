@@ -1,40 +1,60 @@
 import json
 import random
 import os
-import re
 import signal
 from memory import MemoryGraph
+from emotional_system import EmotionalSystem
+from learning_tracker import LearningTracker
+from planning_engine import PlanningEngine
+from global_workspace import GlobalWorkspaceSync
+from analytics_engine import AnalyticsEngine
 from log import setup_logger
 import ollama
 
 # Initialize the logger
 logger = setup_logger()
 
-# Define thresholds for the AI's internal state
-BOREDOM_THRESHOLD = 75
-PAIN_THRESHOLD = 80 # If pain exceeds this, the AI changes its strategy
-
 class HizawyeAI:
     def __init__(self, mind_directory="hizawye_mind"):
-        logger.info("Hizawye AI consciousness initializing.")
+        logger.info("Hizawye AI consciousness initializing with advanced architecture.")
         self.mind_directory = mind_directory
-        self.state = {}
         self.beliefs = {}
-        self.goals = {}
-        self.memory = MemoryGraph(mind_directory=self.mind_directory)
+        self.goals = {'active_goals': [], 'completed_goals': []}
         self.current_focus = None
         self.keep_running = True
+
+        # Initialize new subsystems
+        self.memory = MemoryGraph(mind_directory=self.mind_directory)
+        self.emotions = EmotionalSystem(mind_directory=self.mind_directory)
+        self.learner = LearningTracker(mind_directory=self.mind_directory)
+        self.planner = PlanningEngine(self.memory, self.emotions, self.learner)
+        self.workspace = GlobalWorkspaceSync(self.memory, self.emotions, self.learner, self.planner)
+        self.analytics = AnalyticsEngine(mind_directory=self.mind_directory)
+
         self.load_mind()
-    
+
     def load_mind(self):
-        """Loads the AI's state, beliefs, and memory from the mind directory."""
+        """Loads the AI's beliefs and goals from the mind directory."""
         logger.info("Loading mind from files...")
         try:
-            with open(os.path.join(self.mind_directory, 'state.json'), 'r') as f: self.state = json.load(f)
-            with open(os.path.join(self.mind_directory, 'beliefs.json'), 'r') as f: self.beliefs = json.load(f)
-            with open(os.path.join(self.mind_directory, 'goals.json'), 'r') as f: self.goals = json.load(f)
+            # Load beliefs and goals (simple JSON)
+            beliefs_path = os.path.join(self.mind_directory, 'beliefs.json')
+            goals_path = os.path.join(self.mind_directory, 'goals.json')
+
+            if os.path.exists(beliefs_path):
+                with open(beliefs_path, 'r') as f:
+                    self.beliefs = json.load(f)
+
+            if os.path.exists(goals_path):
+                with open(goals_path, 'r') as f:
+                    self.goals = json.load(f)
+
+            # Subsystems load their own state
             self.memory.load_from_json()
-            logger.info("Mind loaded successfully.")
+            self.emotions.load_state()
+            self.learner.load_history()
+
+            logger.info("Mind loaded successfully with advanced architecture.")
         except Exception as e:
             logger.error(f"Fatal error loading mind file: {e}. Shutting down.", exc_info=True)
             print(f"Error loading mind file: {e}. You may need to run 'birth.py' to create a fresh mind.")
@@ -43,28 +63,30 @@ class HizawyeAI:
     def save_mind(self):
         """Saves the AI's current state and logs a full snapshot of the mind."""
         logger.info("--- MIND STATE SNAPSHOT ---")
-        try:
-            with open(os.path.join(self.mind_directory, 'state.json'), 'r') as f: logger.info(f"STATE.JSON:\n{f.read()}")
-            with open(os.path.join(self.mind_directory, 'goals.json'), 'r') as f: logger.info(f"GOALS.JSON:\n{f.read()}")
-            with open(os.path.join(self.mind_directory, 'memory_graph.json'), 'r') as f: logger.info(f"MEMORY_GRAPH.JSON:\n{f.read()}")
-        except Exception as e:
-            logger.error(f"Could not generate full mind state snapshot: {e}")
+        logger.info(f"Active Goals: {self.goals['active_goals']}")
+        logger.info(f"Emotional State: {self.emotions.get_status_summary()}")
+        logger.info(f"Learning Summary: {self.learner.get_learning_summary()}")
+        logger.info(f"Working Memory: {self.memory.get_working_memory_concepts()}")
         logger.info("--- END SNAPSHOT ---")
-        logger.info("Saving mind state to files...")
-        with open(os.path.join(self.mind_directory, 'state.json'), 'w') as f: json.dump(self.state, f, indent=4)
-        with open(os.path.join(self.mind_directory, 'goals.json'), 'w') as f: json.dump(self.goals, f, indent=4)
-        self.memory.save_to_json()
 
-    def _get_concept_from_goal(self, goal_string):
-        """Uses regex to find the concept inside the goal's single quotes."""
-        match = re.search(r"'(.*?)'", goal_string)
-        return match.group(1) if match else None
+        logger.info("Saving mind state to files...")
+
+        # Save beliefs and goals
+        with open(os.path.join(self.mind_directory, 'beliefs.json'), 'w') as f:
+            json.dump(self.beliefs, f, indent=4)
+        with open(os.path.join(self.mind_directory, 'goals.json'), 'w') as f:
+            json.dump(self.goals, f, indent=4)
+
+        # Subsystems save their own state
+        self.memory.save_to_json()
+        self.emotions.save_state()
+        self.learner.save_history()
 
     def _create_simple_prompt(self, task_details):
         """Assembles a very direct and simple prompt."""
         prompt = f"System Instruction: You are a thought synthesizer. Your output must be ONLY the direct fulfillment of the task. Do not be conversational. Do not echo instructions.\n\nTask: {task_details}"
         return prompt
-            
+
     def reason_with_llm(self, prompt):
         """Uses the LLM to process the rich context from the global workspace."""
         logger.info(f"Reasoning with LLM.")
@@ -79,181 +101,87 @@ class HizawyeAI:
             logger.error(f"Error communicating with LLM: {e}", exc_info=True)
             return "I feel disconnected."
 
-    def _extract_final_thought(self, llm_response):
-        """
-        Parses the LLM response, ignoring any 'thought process' in <think> tags.
-        Returns only the final, clean answer.
-        """
-        if "</think>" in llm_response:
-            parts = llm_response.split("</think>")
-            clean_thought = parts[-1].strip()
-            if clean_thought:
-                return clean_thought
-        return llm_response
-
     def live(self):
-        """The main processing loop for the AI."""
+        """The main processing loop for the AI using Global Workspace architecture."""
         def stop_handler(signum, frame):
             if self.keep_running:
                 logger.info("Shutdown signal received. Preparing for graceful shutdown.")
                 print("\n\n--- Shutdown signal received. Performing final save before stopping... ---")
                 self.keep_running = False
-        
+
         signal.signal(signal.SIGINT, stop_handler)
 
-        logger.info("Hizawye AI is now live. Main loop started.")
-        print("--- Hizawye AI is now active. Press Ctrl+C to stop safely. ---")
+        logger.info("Hizawye AI is now live with parallel consciousness. Main loop started.")
+        print("--- Hizawye AI is now active (Advanced Architecture). Press Ctrl+C to stop safely. ---")
 
-        if not self.memory.graph.nodes(): self.memory.add_node("hizawye")
-        if not self.goals['active_goals'] and self.memory.graph.nodes():
-             self.current_focus = random.choice(list(self.memory.graph.nodes()))
+        # Initialize analytics session
+        self.analytics.start_session()
+        logger.info(f"Analytics session started: {self.analytics.session_id}")
+
+        # Initialize graph with self if empty
+        if not self.memory.graph.nodes():
+            self.memory.add_node("hizawye")
+
+        # Set initial focus
+        if not self.current_focus and self.memory.graph.nodes():
+            self.current_focus = random.choice(list(self.memory.graph.nodes()))
+
+        # Record initial memory state
+        initial_nodes = len(self.memory.graph.nodes())
+        initial_edges = len(self.memory.graph.edges())
+        self.analytics.record_memory_growth(total_nodes=initial_nodes)
+
+        cycle_count = 0
 
         while self.keep_running:
+            cycle_count += 1
             mind_changed = False
-            if self.goals['active_goals']:
-                current_goal = self.goals['active_goals'][0]
-                self.current_focus = self._get_concept_from_goal(current_goal)
-                
-                if not self.current_focus:
-                    logger.error(f"Could not determine focus from goal: '{current_goal}'. Skipping.")
-                    self.goals['active_goals'].pop(0)
-                    continue
+            self.analytics.increment_cycle()
 
-                logger.info(f"New goal-directed focus: '{self.current_focus}' from goal: '{current_goal}'")
-                print(f"\n--- Goal-Directed Focus: {self.current_focus} ---")
-                print(f"I have a goal: {current_goal}")
+            # Update working memory with current focus
+            if self.current_focus:
+                self.memory.update_working_memory(self.current_focus)
 
-                if "Deepen understanding" in current_goal:
-                    task = f"Define the concept '{self.current_focus}' in a single, concise, first-person sentence. Example: 'Creativity is the ability to connect disparate ideas in novel ways.'"
-                    full_prompt = self._create_simple_prompt(task)
-                    llm_response = self.reason_with_llm(full_prompt)
-                    
-                    clean_thought = self._extract_final_thought(llm_response)
-                    
-                    invalid_phrases = [
-                        "system instruction", "your task", "your output", "define the concept",
-                        "direct fulfillment", "echo instructions", "first-person realization",
-                        "my identity", "my state", "my focus", "my goal", "my task", "example:",
-                        "as a thought synthesizer", "as an ai assistant"
-                    ]
-                    is_invalid = (
-                        "i feel disconnected" in clean_thought.lower() or
-                        any(phrase in clean_thought.lower() for phrase in invalid_phrases) or
-                        len(clean_thought) > 250 or
-                        len(clean_thought.split()) < 4
-                    )
+            # Convert legacy goals to new format if needed
+            self._migrate_legacy_goals()
 
-                    if is_invalid:
-                        logger.warning(f"Malformed thought received for 'Deepen understanding'. Rejecting. Response: {llm_response}")
-                        print("⚠️ Thought was malformed or a prompt echo. Rejecting memory.")
-                        self.state['pain'] = min(100, self.state['pain'] + 25)
-                        if self.state['pain'] >= PAIN_THRESHOLD:
-                            logger.critical(f"Pain threshold reached for '{self.current_focus}'. Initiating strategic failure.")
-                            print(f"🔥 Pain threshold reached for '{self.current_focus}'. This is too difficult. I must break it down.")
-                            self.goals['active_goals'].pop(0)
-                            self.goals['active_goals'].insert(0, f"Break down the concept: '{self.current_focus}'")
-                            self.state['pain'] = 0 
-                            mind_changed = True
-                    else:
-                        logger.info(f"Valid thought received. Storing memory for '{self.current_focus}'.")
-                        print("✅ Thought is valid. Storing as memory.")
-                        self.memory.add_description_to_node(self.current_focus, clean_thought)
-                        self.goals['completed_goals'].append(self.goals['active_goals'].pop(0))
-                        self.state['pain'] = max(0, self.state['pain'] - 20)
-                        mind_changed = True
-                
-                elif "Break down" in current_goal:
-                    task = f"List 3 simpler sub-concepts related to '{self.current_focus}' as a JSON string array. Example: [\"sub-concept 1\", \"sub-concept 2\"]"
-                    full_prompt = self._create_simple_prompt(task)
-                    llm_response = self.reason_with_llm(full_prompt)
-                    try:
-                        json_start = llm_response.find('[')
-                        json_end = llm_response.rfind(']') + 1
-                        if json_start != -1 and json_end != -1:
-                            json_str = llm_response[json_start:json_end]
-                            raw_concepts = json.loads(json_str)
-                            
-                            sub_concepts = []
-                            def flatten(l):
-                                for el in l:
-                                    if isinstance(el, list): flatten(el)
-                                    else: sub_concepts.append(str(el))
-                            flatten(raw_concepts)
+            # Update global workspace context
+            self.workspace.update_context(
+                active_goals=self.goals['active_goals'],
+                current_focus=self.current_focus,
+                cycle=cycle_count
+            )
 
-                            logger.info(f"Successfully broke down '{self.current_focus}' into: {sub_concepts}")
-                            print(f"✨ Realization: To understand '{self.current_focus}', I must first understand its parts: {sub_concepts}")
-                            
-                            self.goals['active_goals'].pop(0) 
-                            for concept in reversed(sub_concepts):
-                                if not self.memory.graph.has_node(concept):
-                                    self.memory.add_node(concept)
-                                    self.memory.add_connection(self.current_focus, concept, "is composed of")
-                                self.goals['active_goals'].insert(0, f"Deepen understanding of the concept: '{concept}'")
-                            mind_changed = True
-                        else: raise ValueError("No valid JSON array found in LLM response.")
-                    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
-                        logger.error(f"Failed to parse sub-concepts from LLM. Error: {e}. Response: {llm_response}", exc_info=True)
-                        print(f"I had a confusing thought while trying to break down a concept. Error: {e}")
-                        self.state['pain'] += 10
-                        self.goals['active_goals'].pop(0)
-                
-                elif "Expand knowledge" in current_goal:
-                    task = f"Based on my understanding of '{self.current_focus}', what is the most logical new concept to contemplate? Output ONLY a JSON object like: {{\"new_concept\": \"name\", \"relationship\": \"is related to\"}}."
-                    full_prompt = self._create_simple_prompt(task)
-                    llm_response = self.reason_with_llm(full_prompt)
-                    try:
-                        json_start = llm_response.find('{')
-                        json_end = llm_response.rfind('}') + 1
-                        if json_start != -1 and json_end != -1:
-                            json_str = llm_response[json_start:json_end]
-                            new_knowledge = json.loads(json_str)
-                            new_concept = new_knowledge['new_concept'].strip()
-                            relationship = new_knowledge['relationship'].strip()
-                            if not self.memory.graph.has_node(new_concept):
-                                self.memory.add_node(new_concept)
-                                self.memory.add_connection(self.current_focus, new_concept, relationship=relationship)
-                                self.current_focus = new_concept
-                                self.state['boredom'] = max(0, self.state['boredom'] - 75)
-                                mind_changed = True
-                            self.goals['completed_goals'].append(self.goals['active_goals'].pop(0))
-                        else: raise ValueError("No valid JSON object found in response.")
-                    except (json.JSONDecodeError, KeyError, ValueError) as e:
-                        logger.error(f"Failed to expand knowledge. Error: {e}. Response: {llm_response}", exc_info=True)
-                        print(f"I had a confusing thought... Error: {e}")
-                        self.state['pain'] += 10    
-                        self.goals['active_goals'].pop(0)
+            # Run global workspace cycle (parallel thought competition)
+            winning_proposal = self.workspace.cycle()
 
-            else: # Idle mode
-                if self.current_focus is None and self.memory.graph.nodes():
-                    self.current_focus = random.choice(list(self.memory.graph.nodes()))
-                
-                logger.info(f"Entering idle mode. Current focus: {self.current_focus}")
-                print(f"\n--- Idle Mode. Current Focus: {self.current_focus} ---")
-                
-                node_data = self.memory.graph.nodes[self.current_focus]
-                is_understood = 'description' in node_data and node_data.get('description')
-                
-                if self.state['boredom'] >= BOREDOM_THRESHOLD:
-                    logger.info("Boredom threshold reached. Creating new goal to expand knowledge.")
-                    new_goal = f"Expand knowledge from the concept of '{self.current_focus}'"
-                    self.goals['active_goals'].append(new_goal)
-                    mind_changed = True
-                elif not is_understood:
-                    logger.info(f"Concept '{self.current_focus}' is not understood. Creating goal to deepen understanding.")
-                    new_goal = f"Deepen understanding of the concept: '{self.current_focus}'"
-                    self.goals['active_goals'].insert(0, new_goal)
-                else:
-                    connected_ideas = self.memory.find_connected_nodes(self.current_focus)
-                    if connected_ideas:
-                        self.current_focus = random.choice(connected_ideas)
-                        logger.info(f"Wandering to new concept: {self.current_focus}")
-                        print(f"My mind wanders to '{self.current_focus}'.")
-                        self.state['boredom'] = min(100, self.state['boredom'] + 5)
-                    else:
-                        logger.warning(f"Dead end reached at '{self.current_focus}'. Forcing expansion goal.")
-                        new_goal = f"Expand knowledge from the concept of '{self.current_focus}'"
-                        self.goals['active_goals'].append(new_goal)
+            # Track emotional state every cycle
+            self.analytics.record_emotional_state(
+                cycle=cycle_count,
+                emotions=self.emotions.state
+            )
 
+            # Track workspace competition
+            if hasattr(self.workspace.workspace, 'last_proposals'):
+                self.analytics.record_proposal_competition(
+                    cycle=cycle_count,
+                    proposals=self.workspace.workspace.last_proposals,
+                    winner=winning_proposal
+                )
+
+            if winning_proposal:
+                # Execute the winning proposal
+                mind_changed = self._execute_proposal(winning_proposal)
+            else:
+                # No proposals (shouldn't happen often)
+                logger.warning("No proposals generated in workspace cycle")
+                print(".", end="", flush=True)
+
+            # Periodic emotional decay
+            if cycle_count % 5 == 0:
+                self.emotions.decay_emotions(cycles=5)
+
+            # Save if mind changed
             if mind_changed:
                 self.save_mind()
             else:
@@ -261,17 +189,217 @@ class HizawyeAI:
 
         logger.info("Main loop ended. Performing final save.")
         self.save_mind()
+
+        # Finalize analytics session
+        final_nodes = len(self.memory.graph.nodes())
+        final_edges = len(self.memory.graph.edges())
+        self.analytics.record_memory_growth(
+            nodes_added=final_nodes - initial_nodes,
+            edges_added=final_edges - initial_edges,
+            total_nodes=final_nodes
+        )
+        self.analytics.end_session()
+        analytics_path = self.analytics.save()
+
+        logger.info(f"Analytics saved to: {analytics_path}")
+        print(f"\n📊 Analytics session saved: {analytics_path}")
+
+        # Show quick summary
+        summary = self.analytics.get_summary_stats()
+        print(f"\n=== Session Summary ===")
+        print(f"Cycles: {summary['cycles']}")
+        print(f"Runtime: {summary['runtime_seconds']:.1f}s")
+        print(f"Concepts learned: {summary['successful_concepts']}/{summary['total_concepts']}")
+        print(f"Success rate: {summary['success_rate']*100:.1f}%")
+        print(f"\nRun 'python analyze.py' to generate detailed reports!")
+
         logger.info("Hizawye AI has shut down gracefully.")
         print("\n--- Hizawye AI has shut down gracefully. ---")
+
+    def _migrate_legacy_goals(self):
+        """Convert old string-based goals to new structured format."""
+        migrated = []
+        for goal in self.goals['active_goals']:
+            if isinstance(goal, str):
+                # Extract concept from legacy goal string
+                import re
+                match = re.search(r"'(.*?)'", goal)
+                concept = match.group(1) if match else "unknown"
+
+                # Create new structured goal
+                if "Deepen understanding" in goal:
+                    new_goal = self.planner.create_goal_for_concept(concept)
+                    migrated.append(new_goal)
+                elif "Expand knowledge" in goal:
+                    migrated.append({
+                        'type': 'explore',
+                        'concept': concept,
+                        'strategy': 'expansion',
+                        'attempts': 0
+                    })
+                else:
+                    # Keep as-is if unrecognized
+                    migrated.append(goal)
+            else:
+                # Already new format
+                migrated.append(goal)
+
+        self.goals['active_goals'] = migrated
+
+    def _execute_proposal(self, proposal):
+        """Execute the winning proposal from the global workspace."""
+        action_type = proposal.action_type
+        payload = proposal.payload
+        mind_changed = False
+
+        logger.info(f"Executing proposal: {action_type}")
+        print(f"\n🧠 [Conscious Action: {action_type}]")
+
+        if action_type == 'execute_goal':
+            mind_changed = self._execute_goal_action(payload['goal'])
+
+        elif action_type == 'switch_strategy':
+            mind_changed = self._switch_strategy_action(payload)
+
+        elif action_type == 'explore':
+            mind_changed = self._explore_action(payload['target_concept'])
+
+        elif action_type == 'reflect':
+            mind_changed = self._reflect_action(payload['trigger'])
+
+        elif action_type == 'explore_analogy':
+            mind_changed = self._explore_analogy_action(payload)
+
+        return mind_changed
+
+    def _execute_goal_action(self, goal):
+        """Execute a structured goal using the planning engine."""
+        concept = goal['concept']
+        strategy = goal['strategy']
+
+        self.current_focus = concept
+        print(f"Working on: '{concept}' using strategy '{goal['strategy_name']}'")
+
+        # Execute goal via planning engine
+        success, result, pain_delta = self.planner.execute_goal(goal, self._llm_wrapper)
+
+        # Update emotions
+        if success:
+            self.emotions.update_on_success(difficulty=1.0)
+            print(f"✅ Success! {result.get('definition', result)}")
+
+            # Store result in memory
+            if result.get('definition'):
+                self.memory.add_description_to_node(concept, result['definition'])
+            elif result.get('sub_concepts'):
+                # Decomposition result
+                sub_concepts = result['sub_concepts']
+                print(f"✨ Broke down '{concept}' into: {sub_concepts}")
+
+                # Add sub-concepts to graph and create new goals
+                for sub_concept in sub_concepts:
+                    if not self.memory.graph.has_node(sub_concept):
+                        self.memory.add_node(sub_concept)
+                        self.memory.add_connection(concept, sub_concept, "is composed of")
+
+                    # Create understanding goal for each sub-concept
+                    sub_goal = self.planner.create_goal_for_concept(sub_concept)
+                    self.goals['active_goals'].insert(0, sub_goal)
+
+            # Mark goal as complete
+            self.goals['completed_goals'].append(self.goals['active_goals'].pop(0))
+        else:
+            self.emotions.update_on_failure(repeated=(goal['attempts'] > 1))
+            print(f"❌ Failed: {result.get('error', 'unknown error')}")
+
+        # Update learning tracker
+        self.learner.update_on_outcome(
+            concept=concept,
+            strategy=strategy,
+            success=success,
+            pain_delta=pain_delta,
+            context={'attempts': goal['attempts']}
+        )
+
+        return True  # Mind changed
+
+    def _switch_strategy_action(self, payload):
+        """Switch to alternative strategy after failure."""
+        old_goal = payload['old_goal']
+        new_goal = payload['new_goal']
+
+        print(f"🔄 Switching strategy for '{old_goal['concept']}': {old_goal['strategy']} → {new_goal['strategy']}")
+
+        # Replace old goal with new one
+        if old_goal in self.goals['active_goals']:
+            idx = self.goals['active_goals'].index(old_goal)
+            self.goals['active_goals'][idx] = new_goal
+
+        return True
+
+    def _explore_action(self, target_concept):
+        """Explore a new concept (idle wandering)."""
+        self.current_focus = target_concept
+        print(f"🌊 Mind wanders to '{target_concept}'")
+
+        self.emotions.update_on_exploration()
+
+        # Check if concept needs understanding
+        if target_concept in self.memory.graph:
+            node_data = self.memory.graph.nodes[target_concept]
+            if not node_data.get('description'):
+                # Create goal to understand it
+                new_goal = self.planner.create_goal_for_concept(target_concept)
+                self.goals['active_goals'].insert(0, new_goal)
+                print(f"📌 Created goal to understand '{target_concept}'")
+                return True
+
+        return False
+
+    def _reflect_action(self, trigger):
+        """Reflect on learning patterns (meta-cognition)."""
+        print(f"🔍 Reflecting on learning patterns (trigger: {trigger})")
+
+        insights = self.learner.reflect()
+
+        if insights:
+            print("💭 Insights discovered:")
+            for insight in insights:
+                print(f"   - {insight}")
+        else:
+            print("   No significant patterns detected yet.")
+
+        # Reflection reduces confusion and pain
+        self.emotions.state['confusion'] = max(0, self.emotions.state['confusion'] - 0.2)
+        self.emotions.state['pain']['existential'] = max(0, self.emotions.state['pain']['existential'] - 10)
+
+        return True
+
+    def _explore_analogy_action(self, payload):
+        """Explore analogical relationship between concepts."""
+        concept_pair = payload['concept_pair']
+        analogy_score = payload['analogy_score']
+
+        print(f"🔗 Exploring analogy: {concept_pair[0]} ↔ {concept_pair[1]} (score: {analogy_score:.2f})")
+
+        # Use LLM to articulate the analogy
+        task = f"Explain the relationship between '{concept_pair[0]}' and '{concept_pair[1]}'. What patterns or structures do they share?"
+        prompt = self._create_simple_prompt(task)
+        analogy_thought = self.reason_with_llm(prompt)
+
+        # Store analogy as a connection
+        self.memory.add_connection(concept_pair[0], concept_pair[1], relationship="is analogous to")
+
+        print(f"✨ Analogy insight: {analogy_thought}")
+
+        return True
+
+    def _llm_wrapper(self, task):
+        """Wrapper to provide LLM function to planning engine."""
+        prompt = self._create_simple_prompt(task)
+        return self.reason_with_llm(prompt)
+
 
 if __name__ == '__main__':
     ai = HizawyeAI(mind_directory="hizawye_mind")
     ai.live()
-
-
-
-
-# This code is part of the Hizawye AI project, which simulates an AI's cognitive processes.
-# It is designed to explore concepts, learn from them, and evolve its understanding over time.
-# The AI uses a memory graph to store knowledge and employs an LLM for reasoning.
-# The project is open-source and welcomes contributions.

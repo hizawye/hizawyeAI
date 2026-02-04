@@ -1,6 +1,7 @@
 import networkx as nx
 import json
 import os
+import random
 # --- NEW: Force a non-interactive backend for matplotlib ---
 # This must be done BEFORE importing pyplot
 import matplotlib
@@ -18,6 +19,9 @@ class MemoryGraph:
         self.graph = nx.Graph()
         self.mind_directory = mind_directory
         self.filepath = os.path.join(self.mind_directory, "memory_graph.json")
+        self.attention_scores = {}  # Node importance scores
+        self.working_memory = []    # Hot cache of active concepts (7±2 limit)
+        self.working_memory_capacity = 7
 
     def add_node(self, node_name, attributes=None):
         """Adds a concept/node to the memory."""
@@ -42,6 +46,259 @@ class MemoryGraph:
         if node_name in self.graph:
             return list(self.graph.neighbors(node_name))
         return []
+
+    def compute_attention_scores(self, current_focus=None, recency_weight=0.3):
+        """
+        Compute importance/attention scores for all nodes using:
+        - PageRank (centrality in graph)
+        - Spreading activation from current focus
+        - Recency (recently accessed nodes stay active)
+        """
+        if not self.graph.nodes():
+            return {}
+
+        # Base scores from PageRank (structural importance)
+        try:
+            pagerank_scores = nx.pagerank(self.graph, alpha=0.85)
+        except:
+            pagerank_scores = {node: 1.0 / len(self.graph.nodes()) for node in self.graph.nodes()}
+
+        # Spreading activation from current focus
+        activation_scores = {}
+        if current_focus and current_focus in self.graph:
+            # Current focus gets max activation
+            activation_scores[current_focus] = 1.0
+
+            # 1-hop neighbors get moderate activation
+            for neighbor in self.graph.neighbors(current_focus):
+                activation_scores[neighbor] = 0.6
+
+            # 2-hop neighbors get lower activation
+            try:
+                two_hop = set()
+                for neighbor in self.graph.neighbors(current_focus):
+                    for second_neighbor in self.graph.neighbors(neighbor):
+                        if second_neighbor != current_focus:
+                            two_hop.add(second_neighbor)
+                for node in two_hop:
+                    if node not in activation_scores:
+                        activation_scores[node] = 0.3
+            except:
+                pass
+
+        # Combine scores
+        combined_scores = {}
+        for node in self.graph.nodes():
+            pagerank = pagerank_scores.get(node, 0.1)
+            activation = activation_scores.get(node, 0.0)
+            recency = 1.0 if node in self.working_memory else 0.0
+
+            # Weighted combination
+            combined_scores[node] = (
+                pagerank * 0.4 +
+                activation * 0.4 +
+                recency * recency_weight
+            )
+
+        self.attention_scores = combined_scores
+        logger.info(f"Computed attention scores for {len(combined_scores)} nodes")
+        return combined_scores
+
+    def get_rich_context(self, concept, max_depth=2):
+        """
+        Get comprehensive context for a concept including:
+        - Concept's own description
+        - 1-hop neighbors with relationships
+        - Paths to related understood concepts
+        - Semantic density (connectivity metric)
+        """
+        if not self.graph.has_node(concept):
+            return f"Concept '{concept}' is not yet in memory."
+
+        context_parts = []
+
+        # Own description
+        node_data = self.graph.nodes[concept]
+        if node_data.get('description'):
+            context_parts.append(f"Known: {node_data['description']}")
+        else:
+            context_parts.append(f"'{concept}' is not yet understood.")
+
+        # 1-hop neighbors with relationships
+        neighbors = list(self.graph.neighbors(concept))
+        if neighbors:
+            neighbor_info = []
+            for neighbor in neighbors[:5]:  # Limit to top 5
+                edge_data = self.graph.get_edge_data(concept, neighbor)
+                relationship = edge_data.get('label', 'is_related_to') if edge_data else 'is_related_to'
+
+                neighbor_node_data = self.graph.nodes[neighbor]
+                if neighbor_node_data.get('description'):
+                    neighbor_info.append(f"{concept} {relationship} {neighbor} (understood)")
+                else:
+                    neighbor_info.append(f"{concept} {relationship} {neighbor}")
+
+            if neighbor_info:
+                context_parts.append("Connections: " + "; ".join(neighbor_info))
+
+        # Paths to understood concepts (shows how to reach knowledge)
+        understood_nodes = [
+            node for node, data in self.graph.nodes(data=True)
+            if data.get('description') and node != concept
+        ]
+
+        if understood_nodes and len(understood_nodes) > 0:
+            # Find shortest path to any understood concept
+            closest_understood = None
+            min_distance = float('inf')
+
+            for understood_node in understood_nodes[:10]:  # Check closest 10
+                try:
+                    path_length = nx.shortest_path_length(self.graph, concept, understood_node)
+                    if path_length < min_distance and path_length > 0:
+                        min_distance = path_length
+                        closest_understood = understood_node
+                except nx.NetworkXNoPath:
+                    continue
+
+            if closest_understood and min_distance <= max_depth:
+                try:
+                    path = nx.shortest_path(self.graph, concept, closest_understood)
+                    context_parts.append(f"Path to knowledge: {' → '.join(path)}")
+                except:
+                    pass
+
+        # Semantic density (how connected is this area?)
+        density = len(neighbors) / max(1, len(self.graph.nodes()))
+        if density > 0.3:
+            context_parts.append("This concept is in a densely connected area of knowledge.")
+        elif density < 0.1:
+            context_parts.append("This concept is relatively isolated.")
+
+        return " | ".join(context_parts)
+
+    def find_analogies(self, concept_a, concept_b):
+        """
+        Find structural similarities between two concepts.
+        Returns: analogy score (0-1) and shared patterns.
+        """
+        if not (self.graph.has_node(concept_a) and self.graph.has_node(concept_b)):
+            return 0.0, []
+
+        # Shared neighbors (concepts connected to both)
+        neighbors_a = set(self.graph.neighbors(concept_a))
+        neighbors_b = set(self.graph.neighbors(concept_b))
+        shared = neighbors_a & neighbors_b
+
+        # Structural similarity: compare degree, clustering
+        degree_a = self.graph.degree(concept_a)
+        degree_b = self.graph.degree(concept_b)
+        degree_similarity = 1.0 - abs(degree_a - degree_b) / max(degree_a, degree_b, 1)
+
+        # Relationship pattern similarity
+        relationships_a = set()
+        relationships_b = set()
+
+        for neighbor in neighbors_a:
+            edge_data = self.graph.get_edge_data(concept_a, neighbor)
+            if edge_data:
+                relationships_a.add(edge_data.get('label', 'is_related_to'))
+
+        for neighbor in neighbors_b:
+            edge_data = self.graph.get_edge_data(concept_b, neighbor)
+            if edge_data:
+                relationships_b.add(edge_data.get('label', 'is_related_to'))
+
+        shared_relationships = relationships_a & relationships_b
+
+        # Compute analogy score
+        analogy_score = (
+            len(shared) / max(len(neighbors_a | neighbors_b), 1) * 0.5 +
+            degree_similarity * 0.3 +
+            len(shared_relationships) / max(len(relationships_a | relationships_b), 1) * 0.2
+        )
+
+        patterns = {
+            'shared_neighbors': list(shared),
+            'shared_relationships': list(shared_relationships)
+        }
+
+        return analogy_score, patterns
+
+    def update_working_memory(self, concept):
+        """
+        Maintain working memory cache (Miller's 7±2 rule).
+        Recently accessed concepts stay hot for faster retrieval.
+        """
+        # Add to working memory
+        if concept in self.working_memory:
+            # Move to front (most recent)
+            self.working_memory.remove(concept)
+
+        self.working_memory.insert(0, concept)
+
+        # Evict if over capacity (LRU)
+        if len(self.working_memory) > self.working_memory_capacity:
+            evicted = self.working_memory.pop()
+            logger.info(f"Working memory: evicted '{evicted}', added '{concept}'")
+
+    def get_working_memory_concepts(self):
+        """Get currently active concepts in working memory."""
+        return self.working_memory.copy()
+
+    def find_exploration_target(self, current_focus, avoid_recent=True):
+        """
+        Intelligently select next concept to explore.
+        Uses attention scores to prioritize important/relevant concepts.
+        """
+        if not current_focus or current_focus not in self.graph:
+            # Random selection if no focus
+            if self.graph.nodes():
+                return random.choice(list(self.graph.nodes()))
+            return None
+
+        # Update attention scores based on current focus
+        self.compute_attention_scores(current_focus)
+
+        # Get candidates (connected concepts)
+        candidates = list(self.graph.neighbors(current_focus))
+
+        if not candidates:
+            # Dead end: pick highest attention score globally
+            sorted_nodes = sorted(
+                self.attention_scores.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            for node, score in sorted_nodes:
+                if not avoid_recent or node not in self.working_memory:
+                    return node
+            return sorted_nodes[0][0] if sorted_nodes else None
+
+        # Filter out recently explored if requested
+        if avoid_recent:
+            candidates = [c for c in candidates if c not in self.working_memory[:3]]
+
+        if not candidates:
+            candidates = list(self.graph.neighbors(current_focus))
+
+        # Score candidates by attention
+        candidate_scores = {
+            c: self.attention_scores.get(c, 0.0) for c in candidates
+        }
+
+        # Weight by understanding status (prefer ununderstood)
+        for candidate in candidates:
+            node_data = self.graph.nodes[candidate]
+            if not node_data.get('description'):
+                candidate_scores[candidate] *= 1.5  # Boost unknown concepts
+
+        # Select highest scoring candidate
+        if candidate_scores:
+            best_candidate = max(candidate_scores.items(), key=lambda x: x[1])[0]
+            return best_candidate
+
+        return random.choice(candidates) if candidates else None
 
     def save_to_json(self):
         """Saves the graph to its designated file inside the mind directory."""
