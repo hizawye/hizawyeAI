@@ -14,7 +14,35 @@
 - `hizawye_ai.py:73` - Model reference in reason_with_llm()
 - `README.md:26` - Installation instructions
 
-## 2026-02-04 - Project Initialization
+## 2026-02-04 - Advanced Consciousness Architecture (v2.0)
+
+**Decision:** Transform single-threaded system into parallel, adaptive consciousness engine
+
+**Rationale:**
+- Original architecture was too rigid with fixed goal types and sequential processing
+- Implemented Global Workspace Theory for consciousness simulation
+- Added emotional intelligence to drive learning and adaptation
+- Built meta-learning system to improve strategy selection over time
+- Enhanced memory with attention mechanisms and analogy detection
+
+**Key Components:**
+- `global_workspace.py` - 4 parallel thought threads competing each cycle
+- `emotional_system.py` - Multi-dimensional drives (pain, curiosity, boredom, confidence, confusion)
+- `learning_tracker.py` - Bayesian tracking of strategy effectiveness
+- `planning_engine.py` - 5 intelligent strategies with adaptive selection
+- `analytics_engine.py` - Session tracking and reporting
+- Enhanced `memory.py` - Attention scoring, working memory, rich context retrieval
+
+**Files Changed:**
+- `hizawye_ai.py` - Refactored to use Global Workspace, added proposal execution system
+- `memory.py` - Added attention scoring, working memory, analogy detection, rich context
+- New modules: `global_workspace.py`, `emotional_system.py`, `learning_tracker.py`, `planning_engine.py`, `analytics_engine.py`, `report_generator.py`, `analyze.py`
+
+**Backward Compatibility:**
+- Legacy string goals auto-migrate to structured format
+- All original functionality preserved with enhanced intelligence
+
+## 2026-02-04 - Model Upgrade: tinyllama → llama3.2:3b
 
 **Decision:** Initialize documentation structure
 
