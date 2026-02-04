@@ -23,7 +23,7 @@ The AI's "mind" is built from several key components:
 Hizawye's behavior emerges from a continuous loop:
 
 1. **Goal-Oriented Focus**: The AI prioritizes its active goal (e.g., "Deepen understanding of 'philosophy'").
-2. **Reasoning**: Uses a local LLM (`ollama` with `tinyllama`) to achieve its goal by prompting for definitions or breakdowns.
+2. **Reasoning**: Uses a local LLM (`ollama` with `llama3.2:3b`) to achieve its goal by prompting for definitions or breakdowns.
 3. **Validation & Learning**:
      - **Success**: Valid thoughts are stored in the memory graph, the goal is completed, and "pain" is reduced.
      - **Failure**: Malformed thoughts are rejected.
@@ -87,7 +87,7 @@ pip install -r requirements.txt
 Download the small language model:
 
 ```bash
-ollama pull tinyllama
+ollama pull llama3.2:3b
 ```
 
 ---

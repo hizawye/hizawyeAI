@@ -70,7 +70,7 @@ class HizawyeAI:
         logger.info(f"Reasoning with LLM.")
         print(f"\n🤔 [Hizawye is reasoning]...\n--- PROMPT ---\n{prompt}\n--------------")
         try:
-            response = ollama.chat(model='tinyllama', messages=[{'role': 'user', 'content': prompt}], options={'temperature': 0.5})
+            response = ollama.chat(model='llama3.2:3b', messages=[{'role': 'user', 'content': prompt}], options={'temperature': 0.5})
             thought = response['message']['content'].strip()
             logger.info(f"LLM thought received: {thought}")
             print(f"💡 [Hizawye's thought]: {thought}")
