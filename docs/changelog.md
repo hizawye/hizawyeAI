@@ -48,6 +48,9 @@
 - Updated installation instructions in README
 - Refreshed README to reflect v2.0 architecture and workflow
 
+### Known Issues
+- Observed 2026-02-04: system can enter a repeated `explore` loop where the mind wanders among concepts without executing goals
+
 ## [1.0.0] - Initial Release
 
 ### Features

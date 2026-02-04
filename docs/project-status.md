@@ -48,7 +48,7 @@
 
 ## 🐛 Known Issues
 
-None currently. All modules verified and functional.
+- Observed 2026-02-04: system can enter a repeated `explore` loop where the mind wanders among concepts (e.g., creativity → ideas → wandering) without executing goals.
 
 ## 📋 Next Steps
 
@@ -57,6 +57,7 @@ None currently. All modules verified and functional.
 - Test migration of existing minds
 - Observe meta-cognition and learning patterns over extended runtime
 - Validate strategy adaptation over multiple cycles
+- Reproduce and diagnose the `explore` loop; inspect proposal scoring and boredom/curiosity thresholds
 
 **Potential Enhancements:**
 - Visualization of Global Workspace competition (which threads win over time)
