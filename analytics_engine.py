@@ -56,12 +56,21 @@ class AnalyticsEngine:
         }
         self.session_data["emotional_timeline"].append(emotional_snapshot)
 
+        # Handle nested pain dicts from EmotionalSystem
+        pain = emotions.get("pain", 0)
+        if isinstance(pain, dict):
+            total_pain = sum(pain.values()) / max(len(pain), 1)
+            frustration = pain.get("frustration", 0)
+        else:
+            total_pain = pain
+            frustration = emotions.get("frustration", 0)
+
         # Track pain events
-        if emotions.get("pain", 0) > 50:
+        if total_pain > 50:
             self.session_data["pain_events"].append({
                 "cycle": cycle,
-                "pain": emotions.get("pain"),
-                "frustration": emotions.get("frustration", 0),
+                "pain": total_pain,
+                "frustration": frustration,
                 "confusion": emotions.get("confusion", 0)
             })
 
@@ -73,7 +82,7 @@ class AnalyticsEngine:
     ):
         """Track which threads compete and which wins."""
         for proposal in proposals:
-            thread_name = proposal.thread_type
+            thread_name = getattr(proposal, "thread_type", None) or getattr(proposal, "source", "unknown")
 
             if thread_name not in self.session_data["workspace_competition"]:
                 self.session_data["workspace_competition"][thread_name] = {
