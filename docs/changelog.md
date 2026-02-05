@@ -10,6 +10,8 @@
 - Consciousness assessment and evaluation protocol docs
 - Ollama health check and fallback LLM responses when the model is unavailable
 - Learning verification script with optional judge model (`evaluate_learning.py`)
+- Configurable hard-fail when LLM is unavailable (`HIZAWYE_REQUIRE_LLM`)
+- LLM-driven novelty injection to introduce new concepts over time
 
 ### Changed
 - LLM prompts tightened with stricter output rules and parsing safeguards

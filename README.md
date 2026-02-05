@@ -118,6 +118,9 @@ ollama pull llama3.2:3b
 
      Press `Ctrl+C`. The program will finish its current cycle, save state, and shut down gracefully.
 
+> **LLM availability:** By default the app will abort if Ollama/model is unavailable.
+> To allow fallback responses instead, set `HIZAWYE_REQUIRE_LLM=0` before running.
+
 4. **Visualize the AI's Mind**
 
      ```bash

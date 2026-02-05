@@ -48,6 +48,17 @@
 **Key Components:**
 - `hizawye_ai.py` - LLM availability check and fallback response generator
 
+## 2026-02-05 - Hard-Fail When LLM Is Missing (Configurable)
+
+**Decision:** Abort startup when the LLM is unavailable unless explicitly overridden.
+
+**Rationale:**
+- Prevent fallback responses from polluting memory and analytics
+- Make LLM availability a clear, early failure instead of a silent degradation
+
+**Key Components:**
+- `hizawye_ai.py` - `HIZAWYE_REQUIRE_LLM` flag (default on)
+
 ## 2026-02-05 - External Learning Verification Script
 
 **Decision:** Add a script to verify learned concepts using heuristics and an optional judge model.
@@ -58,6 +69,19 @@
 
 **Key Components:**
 - `evaluate_learning.py` - Evaluates learned concepts and produces reports
+
+## 2026-02-05 - LLM-Driven Novelty Injection
+
+**Decision:** Inject new concepts via the LLM when boredom is high, and allow exploration/perception to draw from that novelty pool.
+
+**Rationale:**
+- The system was stuck cycling through existing graph nodes with no new concepts
+- Needed controlled novelty to expand the memory graph over time
+
+**Key Components:**
+- `input_stream.py` - Novelty rate and supplier hook
+- `modules/exploration_module.py` - Novelty fallback when no target is found
+- `hizawye_ai.py` - LLM novelty pool generation and filtering
 
 ## 2026-02-04 - GNW Refactor: Ignition + Specialist Modules
 

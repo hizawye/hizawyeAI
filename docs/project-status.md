@@ -71,6 +71,8 @@
 - Goal execution proposals boosted to avoid percept dominance
 - Duplicate concept goals suppressed and cleaned up after success
 - LLM health check with fallback responses to keep learning loop functional
+- Configurable hard-fail when LLM is unavailable (`HIZAWYE_REQUIRE_LLM`)
+- LLM-driven novelty injection to add new concepts under high boredom
 
 **Backward Compatibility:**
 - Existing minds auto-migrate legacy string goals → structured format
@@ -92,6 +94,7 @@
 - Confirm session summaries report non-zero concepts learned after goal execution
 - Run evaluation protocol and record ignition/persistence rates
 - Use `evaluate_learning.py` with a second model to validate learning quality
+- Verify that new concepts are injected over time (not only existing graph nodes)
 
 **Potential Enhancements:**
 - Visualization of GNW ignition events and persistence durations

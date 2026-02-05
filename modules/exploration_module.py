@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Callable
 
 from gnw_types import Module, Proposal
 from log import setup_logger
@@ -13,10 +13,11 @@ def _clamp(value: float, min_value: float = 0.0, max_value: float = 1.0) -> floa
 
 
 class ExplorationModule(Module):
-    def __init__(self, memory, emotions) -> None:
+    def __init__(self, memory, emotions, novelty_supplier: Optional[Callable[[], Optional[str]]] = None) -> None:
         super().__init__("Exploration")
         self.memory = memory
         self.emotions = emotions
+        self.novelty_supplier = novelty_supplier
 
     def produce_proposals(self, context: Dict[str, Any]) -> List[Proposal]:
         drives = self.emotions.compute_drive_vector()
@@ -30,6 +31,10 @@ class ExplorationModule(Module):
             return []
 
         target = self.memory.find_exploration_target(current_focus, avoid_recent=True)
+        if not target and self.novelty_supplier:
+            target = self.novelty_supplier()
+            if target:
+                logger.info(f"[{self.name}] Using novelty target '{target}'")
         if not target:
             return []
 

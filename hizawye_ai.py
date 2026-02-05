@@ -49,16 +49,23 @@ class HizawyeAI:
         self.llm_model = 'llama3.2:3b'
         self.llm_available = True
         self._fallback_warned = False
+        self.require_llm = os.environ.get("HIZAWYE_REQUIRE_LLM", "1").lower() not in ("0", "false", "no")
+        self.novelty_pool = []
+        self.novelty_boredom_threshold = 65.0
 
         # Initialize new subsystems
         self.memory = MemoryGraph(mind_directory=self.mind_directory)
         self.emotions = EmotionalSystem(mind_directory=self.mind_directory)
         self.learner = LearningTracker(mind_directory=self.mind_directory)
         self.planner = PlanningEngine(self.memory, self.emotions, self.learner)
-        self.input_stream = SimulatedInputStream()
+        self.input_stream = SimulatedInputStream(
+            seed_concepts=[],
+            novelty_rate=0.25,
+            novelty_supplier=self._novelty_supplier
+        )
         self.modules = [
             GoalPlannerModule(self.planner, self.emotions),
-            ExplorationModule(self.memory, self.emotions),
+            ExplorationModule(self.memory, self.emotions, novelty_supplier=self._novelty_supplier),
             ReflectionModule(self.learner, self.emotions),
             PatternRecognitionModule(self.memory, self.emotions),
             PerceptionModule(self.input_stream, self.memory),
@@ -70,6 +77,10 @@ class HizawyeAI:
 
         self.load_mind()
         self.llm_available = self._check_llm_availability()
+        if self.require_llm and not self.llm_available:
+            logger.error("LLM unavailable; aborting startup (HIZAWYE_REQUIRE_LLM=1).")
+            print("❌ LLM unavailable. Start Ollama and pull the model, or set HIZAWYE_REQUIRE_LLM=0 to allow fallback.")
+            exit(1)
 
     def load_mind(self):
         """Loads the AI's beliefs and goals from the mind directory."""
@@ -293,6 +304,78 @@ class HizawyeAI:
         self.recent_actions.append(record)
         if action_type == "explore" and concept:
             self.recent_explores.append(concept)
+
+    def _novelty_supplier(self):
+        """Provide a novel concept from the LLM when boredom is high."""
+        if self.novelty_pool:
+            return self.novelty_pool.pop(0)
+
+        if self.emotions.get_total_boredom() < self.novelty_boredom_threshold:
+            return None
+
+        new_concepts = self._generate_novel_concepts()
+        if new_concepts:
+            self.novelty_pool.extend(new_concepts)
+            return self.novelty_pool.pop(0)
+        return None
+
+    def _generate_novel_concepts(self):
+        """Ask the LLM for new concepts and return a filtered list."""
+        task = (
+            "Generate 5-8 novel but coherent concepts related to cognition, behavior, or learning. "
+            "Return a JSON array of strings only. No prose, no markdown."
+        )
+        prompt = self._create_simple_prompt(task)
+        response = self.reason_with_llm(prompt)
+        candidates = self._parse_json_array(response)
+        if not candidates:
+            return []
+
+        existing = {str(n).strip().lower() for n in self.memory.graph.nodes()}
+        recent = {str(n).strip().lower() for n in self.recent_explores}
+        pool = []
+        for item in candidates:
+            concept = str(item).strip()
+            if not concept:
+                continue
+            if len(concept) > 60:
+                continue
+            concept_key = concept.lower()
+            if concept_key in existing or concept_key in recent:
+                continue
+            if concept_key in {c.lower() for c in pool}:
+                continue
+            pool.append(concept)
+        return pool
+
+    def _parse_json_array(self, text):
+        """Extract a JSON array from text and return a list."""
+        if not text:
+            return []
+        response = text
+        if "```" in response:
+            parts = response.split("```")
+            if len(parts) >= 2:
+                response = parts[1].strip()
+        json_start = response.find('[')
+        json_end = response.rfind(']') + 1
+        if json_start == -1 or json_end == 0:
+            return []
+        json_str = response[json_start:json_end]
+        try:
+            raw = json.loads(json_str)
+        except json.JSONDecodeError:
+            return []
+        items = []
+        if isinstance(raw, list):
+            def flatten(lst):
+                for el in lst:
+                    if isinstance(el, list):
+                        flatten(el)
+                    else:
+                        items.append(el)
+            flatten(raw)
+        return items
 
     def _goal_exists_for_concept(self, concept):
         """Check if a goal already exists (active or completed) for a concept."""
@@ -584,6 +667,13 @@ class HizawyeAI:
         print(f"🌊 Mind wanders to '{target_concept}'")
 
         self.emotions.update_on_exploration()
+
+        if target_concept not in self.memory.graph:
+            self.memory.add_node(target_concept)
+            new_goal = self.planner.create_goal_for_concept(target_concept)
+            self.goals['active_goals'].insert(0, new_goal)
+            print(f"📌 Created goal to understand new concept '{target_concept}'")
+            return True
 
         # Check if concept needs understanding
         if target_concept in self.memory.graph:
