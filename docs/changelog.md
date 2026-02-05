@@ -6,6 +6,10 @@
 - Analytics tracking for concept learning attempts (concepts learned + strategies used)
 - Improved memory visualization: attention-based sizing, focus highlight, overview map (`memory_map_focus.png`)
 - Behavior quality tuning: exploration gating, perception scaling under focus, repetition penalty
+- Analytics tracking for ignition/persistence events and reflection triggers
+- Consciousness assessment and evaluation protocol docs
+- Ollama health check and fallback LLM responses when the model is unavailable
+- Learning verification script with optional judge model (`evaluate_learning.py`)
 
 ### Changed
 - LLM prompts tightened with stricter output rules and parsing safeguards

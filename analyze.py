@@ -117,6 +117,10 @@ def show_summary(session_data: dict):
     else:
         dominant_name = "N/A"
         dominant_wins = 0
+    workspace_events = session_data.get("workspace_events", {})
+    ignitions = workspace_events.get("ignitions", 0)
+    persisted = workspace_events.get("persisted", 0)
+    none_events = workspace_events.get("none", 0)
 
     print(f"\n📊 Session Summary: {session_id}")
     print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -125,6 +129,9 @@ def show_summary(session_data: dict):
     print(f"Strategies:     {len(strategies)} different approaches")
     print(f"Pain events:    {len(pain_events)}")
     print(f"Reflections:    {len(reflections)}")
+    print(f"Ignitions:      {ignitions}")
+    print(f"Persisted:      {persisted}")
+    print(f"No content:     {none_events}")
     print(f"Dominant thread: {dominant_name} ({dominant_wins} wins)")
     print()
 

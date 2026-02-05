@@ -127,6 +127,14 @@ ollama pull llama3.2:3b
      This generates `hizawye_mind/memory_map.png` plus a focused
      `hizawye_mind/memory_map_focus.png` that highlights top-attention concepts.
 
+5. **Verify Learning with a Second Model (Optional)**
+
+     ```bash
+     python evaluate_learning.py --mode both --model <judge-model>
+     ```
+
+     This evaluates learned concepts with heuristic checks and an optional judge model.
+
 ---
 
 ## Research and Design
@@ -134,6 +142,11 @@ ollama pull llama3.2:3b
 ### Hizawye AI Research Paper Summary
 
 This paper introduces Hizawye AI, a computational framework simulating consciousness based on Global Workspace Theory. It models an autonomous agent driven by internal states (curiosity, boredom, pain) with a modular "mind" (JSON files), a dynamic knowledge graph for memory, and a Python-orchestrated reasoning loop using a small Large Language Model (LLM). The AI exhibits emergent behaviors like goal-oriented focus, idle wandering, and strategic failure, learning from repeated failures. The paper details its architecture, consciousness loop methodology, and analyzes experimental logs, highlighting both the successes of its adaptive strategies and the challenges posed by the limitations of its reasoning core.
+
+### Evaluation Docs
+
+- `docs/consciousness-assessment.md` - Candid assessment of what the system does and does not simulate
+- `docs/evaluation-protocol.md` - Repeatable protocol and metrics for GNW evaluation
 
 ### Hizawye AI Idea Mind Map
 

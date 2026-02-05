@@ -14,6 +14,29 @@ class ReportGenerator:
     def __init__(self, session_data: Dict[str, Any]):
         self.data = session_data
 
+    @staticmethod
+    def _avg_metric(snapshot: Dict[str, Any], key: str) -> float:
+        value = snapshot.get(key, 0)
+        if isinstance(value, dict):
+            if not value:
+                return 0.0
+            return sum(value.values()) / len(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _workspace_event_summary(self) -> Dict[str, Any]:
+        events = self.data.get("workspace_events", {})
+        return {
+            "ignitions": events.get("ignitions", 0),
+            "persisted": events.get("persisted", 0),
+            "none": events.get("none", 0),
+            "by_type": events.get("by_type", {}),
+            "activation": events.get("activation", {}),
+            "persistence_runs": events.get("persistence_runs", []),
+        }
+
     def generate_session_summary(self) -> str:
         """Generate executive session summary report."""
         cycles = self.data.get("cycles", 0)
@@ -45,13 +68,38 @@ class ReportGenerator:
             first_state = timeline[0]
             last_state = timeline[-1]
 
-            peak_pain_event = max(timeline, key=lambda x: x.get("pain", 0))
-            avg_curiosity = sum(e.get("curiosity", 0) for e in timeline) / len(timeline)
+            peak_pain_event = max(timeline, key=lambda x: self._avg_metric(x, "pain"))
+            avg_curiosity = sum(self._avg_metric(e, "curiosity") for e in timeline) / len(timeline)
         else:
             first_state = {}
             last_state = {}
             peak_pain_event = {}
             avg_curiosity = 0
+
+        workspace = self._workspace_event_summary()
+        ignitions = workspace["ignitions"]
+        persisted = workspace["persisted"]
+        none_events = workspace["none"]
+        ignition_rate = (ignitions / cycles * 100) if cycles > 0 else 0
+        persistence_rate = (persisted / cycles * 100) if cycles > 0 else 0
+        avg_ignition_activation = 0
+        avg_persist_activation = 0
+        if workspace["activation"].get("ignition_count", 0) > 0:
+            avg_ignition_activation = (
+                workspace["activation"].get("ignition_sum", 0.0)
+                / workspace["activation"].get("ignition_count", 1)
+            )
+        if workspace["activation"].get("persist_count", 0) > 0:
+            avg_persist_activation = (
+                workspace["activation"].get("persist_sum", 0.0)
+                / workspace["activation"].get("persist_count", 1)
+            )
+        persistence_runs = workspace["persistence_runs"]
+        median_run = 0
+        if persistence_runs:
+            lengths = sorted(r.get("length", 0) for r in persistence_runs)
+            mid = len(lengths) // 2
+            median_run = lengths[mid] if len(lengths) % 2 == 1 else (lengths[mid - 1] + lengths[mid]) / 2
 
         report = f"""# Hizawye AI - Session Report
 **Date:** {self.data.get('session_id', 'Unknown')}
@@ -62,11 +110,16 @@ class ReportGenerator:
 - Strategies used: {len(strategies)} different approaches
 - Success rate: {success_rate:.1f}%
 - Dominant thread: {dominant_name} ({dominant_pct:.0f}% of conscious actions)
+- Ignitions: {ignitions} ({ignition_rate:.1f}% of cycles)
+- Persisted: {persisted} ({persistence_rate:.1f}% of cycles)
+- No content: {none_events}
+- Avg activation: ignition {avg_ignition_activation:.2f}, persistence {avg_persist_activation:.2f}
+- Median persistence run: {median_run} cycles
 
 ## Emotional Journey
 - Started: confidence {first_state.get('confidence', 0):.2f}
 - Ended: confidence {last_state.get('confidence', 0):.2f}
-- Peak pain: {peak_pain_event.get('pain', 0):.1f} at cycle {peak_pain_event.get('cycle', 0)}
+- Peak pain: {self._avg_metric(peak_pain_event, 'pain'):.1f} at cycle {peak_pain_event.get('cycle', 0)}
 - Curiosity: avg {avg_curiosity:.1f}
 
 ## Top Insights
@@ -142,6 +195,7 @@ class ReportGenerator:
         """Generate consciousness pattern analysis."""
         competition = self.data.get("workspace_competition", {})
         cycles = self.data.get("cycles", 0)
+        workspace = self._workspace_event_summary()
 
         report = """# Consciousness Patterns
 
@@ -169,6 +223,28 @@ class ReportGenerator:
                 bar = "█" * bar_length
                 report += f"{thread_name:20s} {bar} {wins}\n"
             report += "```\n"
+
+        # Ignition and persistence breakdown
+        ignitions = workspace.get("ignitions", 0)
+        persisted = workspace.get("persisted", 0)
+        none_events = workspace.get("none", 0)
+        ignition_rate = (ignitions / cycles * 100) if cycles > 0 else 0
+        persistence_rate = (persisted / cycles * 100) if cycles > 0 else 0
+
+        report += "\n## Ignition & Persistence\n"
+        report += f"- Ignitions: {ignitions} ({ignition_rate:.1f}% of cycles)\n"
+        report += f"- Persisted: {persisted} ({persistence_rate:.1f}% of cycles)\n"
+        report += f"- No content: {none_events}\n"
+
+        by_type = workspace.get("by_type", {})
+        if by_type:
+            report += "\n### By Content Type\n"
+            for content_type, stats in sorted(by_type.items()):
+                report += (
+                    f"- {content_type}: "
+                    f"{stats.get('ignitions', 0)} ignitions, "
+                    f"{stats.get('persisted', 0)} persisted\n"
+                )
 
         # Behavioral patterns
         reflections = self.data.get("reflections", [])
@@ -214,7 +290,7 @@ class ReportGenerator:
 
         if timeline:
             # Curiosity analysis
-            curiosity_values = [e.get("curiosity", 0) for e in timeline if "curiosity" in e]
+            curiosity_values = [self._avg_metric(e, "curiosity") for e in timeline if "curiosity" in e]
             if curiosity_values:
                 avg_curiosity = sum(curiosity_values) / len(curiosity_values)
                 min_curiosity = min(curiosity_values)

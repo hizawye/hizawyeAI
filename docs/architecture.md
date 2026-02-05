@@ -35,6 +35,17 @@ Each cycle:
 4. Content persists with decay even without new ignition.
 5. Broadcast updates modules and triggers execution.
 
+## GWT Mapping (Operational)
+
+This project uses a functional interpretation of Global Workspace Theory (GWT). The mapping below is intended as an operational checklist, not a claim of subjective experience.
+
+- **Specialized processors** → `modules/` (goal planning, exploration, perception, reflection, memory, emotion)
+- **Competition for access** → `workspace.py` scoring and selection
+- **Ignition threshold** → `Workspace.ignition_threshold`
+- **Global broadcast** → `Workspace._broadcast()` to all modules
+- **Persistence/decay** → `Workspace._decay_and_persist()` activation decay
+- **Behavioral impact** → `hizawye_ai.py` executes ignited content only
+
 ## Core Components
 
 ### HizawyeAI Class (`hizawye_ai.py`)

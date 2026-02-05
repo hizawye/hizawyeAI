@@ -12,6 +12,53 @@
 - `hizawye_ai.py` - Record concept learning attempts in analytics
 - `memory.py` - Attention-based sizing, focus highlight, and top-attention map
 
+## 2026-02-05 - Goal Execution Priority + Goal Dedupe
+
+**Decision:** Boost goal execution proposals and prevent duplicate goals from piling up.
+
+**Rationale:**
+- Workspace competition was dominated by percepts, starving goal execution
+- Percepts repeatedly created duplicate goals for the same concepts
+
+**Key Components:**
+- `modules/goal_planner_module.py` - Add baseline evidence/salience/urgency for goal proposals
+- `hizawye_ai.py` - Skip creating duplicate goals; remove duplicates after a concept succeeds
+
+## 2026-02-05 - Workspace Ignition Metrics + Reflection Logging
+
+**Decision:** Record ignition/persistence metrics and reflection events in analytics for evaluation.
+
+**Rationale:**
+- Needed objective measures to compare GNW dynamics across runs
+- Reflections were not visible in analytics reports
+
+**Key Components:**
+- `analytics_engine.py` - Track ignition, persistence runs, activation stats
+- `hizawye_ai.py` - Record workspace events and reflection outcomes
+- `report_generator.py` - Include ignition/persistence metrics in reports
+
+## 2026-02-05 - LLM Health Check + Fallback Responses
+
+**Decision:** Add an Ollama health check and deterministic fallback responses when LLM calls fail.
+
+**Rationale:**
+- Prevent silent "I feel disconnected" failures from stalling learning
+- Provide actionable error guidance when Ollama is not running or model is missing
+
+**Key Components:**
+- `hizawye_ai.py` - LLM availability check and fallback response generator
+
+## 2026-02-05 - External Learning Verification Script
+
+**Decision:** Add a script to verify learned concepts using heuristics and an optional judge model.
+
+**Rationale:**
+- Need independent verification of learning quality beyond internal success flags
+- Support a second model as a judge for stronger evaluation
+
+**Key Components:**
+- `evaluate_learning.py` - Evaluates learned concepts and produces reports
+
 ## 2026-02-04 - GNW Refactor: Ignition + Specialist Modules
 
 **Decision:** Replace the fixed-thread Global Workspace with a GNW-style workspace.

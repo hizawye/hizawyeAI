@@ -2,6 +2,7 @@ import json
 import random
 import os
 import signal
+import re
 from collections import deque
 from memory import MemoryGraph
 from emotional_system import EmotionalSystem
@@ -45,6 +46,9 @@ class HizawyeAI:
         self.keep_running = True
         self.recent_actions = deque(maxlen=10)
         self.recent_explores = deque(maxlen=5)
+        self.llm_model = 'llama3.2:3b'
+        self.llm_available = True
+        self._fallback_warned = False
 
         # Initialize new subsystems
         self.memory = MemoryGraph(mind_directory=self.mind_directory)
@@ -65,6 +69,7 @@ class HizawyeAI:
         self.analytics = AnalyticsEngine(mind_directory=self.mind_directory)
 
         self.load_mind()
+        self.llm_available = self._check_llm_availability()
 
     def load_mind(self):
         """Loads the AI's beliefs and goals from the mind directory."""
@@ -125,8 +130,10 @@ class HizawyeAI:
         logger.info(f"Reasoning with LLM.")
         print(f"\n🤔 [Hizawye is reasoning]...\n--- PROMPT ---\n{prompt}\n--------------")
         try:
+            if not self.llm_available:
+                return self._fallback_llm_response(prompt, reason="llm_unavailable")
             response = ollama.chat(
-                model='llama3.2:3b',
+                model=self.llm_model,
                 messages=[
                     {'role': 'system', 'content': SYSTEM_PROMPT},
                     {'role': 'user', 'content': prompt}
@@ -134,12 +141,115 @@ class HizawyeAI:
                 options={'temperature': 0.5}
             )
             thought = response['message']['content'].strip()
+            if not thought or thought.strip().lower() == "i feel disconnected.":
+                return self._fallback_llm_response(prompt, reason="empty_response")
             logger.info(f"LLM thought received: {thought}")
             print(f"💡 [Hizawye's thought]: {thought}")
             return thought
         except Exception as e:
             logger.error(f"Error communicating with LLM: {e}", exc_info=True)
-            return "I feel disconnected."
+            return self._fallback_llm_response(prompt, reason="exception")
+
+    def _check_llm_availability(self):
+        """Verify Ollama availability and model presence."""
+        try:
+            list_fn = getattr(ollama, "list", None)
+            if callable(list_fn):
+                data = list_fn()
+                models = []
+                if isinstance(data, dict):
+                    models = [m.get("name") for m in data.get("models", []) if isinstance(m, dict)]
+                elif isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            models.append(item.get("name"))
+                        elif isinstance(item, str):
+                            models.append(item)
+                if self.llm_model in models:
+                    logger.info(f"Ollama model available: {self.llm_model}")
+                    return True
+                if any(name and name.startswith(self.llm_model) for name in models):
+                    logger.info(f"Ollama model available (prefix match): {self.llm_model}")
+                    return True
+                if models:
+                    logger.warning(f"Ollama model not found: {self.llm_model}")
+                    print(f"⚠️ Ollama model not found: {self.llm_model}. Run: ollama pull {self.llm_model}")
+                    return False
+        except Exception as e:
+            logger.warning(f"Ollama health check failed: {e}")
+            print("⚠️ Ollama server not reachable. Run: ollama serve")
+            return False
+
+        # Fallback: attempt a minimal call if list() is unavailable
+        try:
+            _ = ollama.chat(
+                model=self.llm_model,
+                messages=[{'role': 'user', 'content': 'ping'}],
+                options={'temperature': 0}
+            )
+            logger.info(f"Ollama model available via ping: {self.llm_model}")
+            return True
+        except Exception as e:
+            logger.warning(f"Ollama ping failed: {e}")
+            print("⚠️ Ollama model not reachable. Run: ollama serve")
+            return False
+
+    def _fallback_llm_response(self, prompt, reason="unknown"):
+        """Return a safe, valid response when the LLM is unavailable."""
+        if not self._fallback_warned:
+            self._fallback_warned = True
+            logger.warning(f"Using fallback LLM response (reason={reason}).")
+            print("⚠️ LLM unavailable; using fallback responses.")
+
+        concept = self._extract_first_quoted(prompt) or "this concept"
+        lower = prompt.lower()
+
+        if "json array" in lower:
+            parts = [
+                f"{concept} basics",
+                f"{concept} structure",
+                f"{concept} application"
+            ]
+            return json.dumps(parts)
+
+        if "is like" in lower and "because" in lower:
+            return f"{concept} is like a toolbox because it organizes useful parts for action."
+
+        if "explain the relationship between" in lower and " and " in lower:
+            pair = self._extract_pair(prompt)
+            if pair:
+                a, b = pair
+                return f"{a} and {b} both involve patterns that guide choices and understanding."
+            return f"{concept} connects to related ideas through shared structure."
+
+        if "define" in lower and "relation to these connected concepts" in lower:
+            neighbors = self._extract_neighbors(prompt)
+            if neighbors:
+                neighbor_text = ", ".join(neighbors[:2])
+                return f"{concept} links to {neighbor_text} by shaping how they are used and understood."
+            return f"{concept} relates to nearby ideas by organizing their meaning."
+
+        return f"{concept} is a structured understanding that guides decisions and interpretation."
+
+    def _extract_first_quoted(self, text):
+        match = re.search(r"'([^']+)'", text)
+        if match:
+            return match.group(1)
+        return None
+
+    def _extract_pair(self, text):
+        matches = re.findall(r"'([^']+)'", text)
+        if len(matches) >= 2:
+            return matches[0], matches[1]
+        return None
+
+    def _extract_neighbors(self, text):
+        # Extract list inside brackets if present.
+        match = re.search(r"\[(.*?)\]", text)
+        if not match:
+            return []
+        raw = match.group(1)
+        return [item.strip(" '\"") for item in raw.split(",") if item.strip()]
 
     def _compute_attention_gain(self):
         """Compute attention gain for workspace competition based on emotional state."""
@@ -183,6 +293,20 @@ class HizawyeAI:
         self.recent_actions.append(record)
         if action_type == "explore" and concept:
             self.recent_explores.append(concept)
+
+    def _goal_exists_for_concept(self, concept):
+        """Check if a goal already exists (active or completed) for a concept."""
+        for goal in self.goals.get('active_goals', []):
+            if isinstance(goal, dict) and goal.get('concept') == concept:
+                return True
+            if isinstance(goal, str) and concept in goal:
+                return True
+        for goal in self.goals.get('completed_goals', []):
+            if isinstance(goal, dict) and goal.get('concept') == concept:
+                return True
+            if isinstance(goal, str) and concept in goal:
+                return True
+        return False
 
     def live(self):
         """The main processing loop for the AI using GNW architecture."""
@@ -242,6 +366,12 @@ class HizawyeAI:
 
             # Run GNW workspace cycle (competition + ignition)
             winning_content = self.workspace.cycle()
+
+            # Track ignition/persistence outcomes
+            self.analytics.record_workspace_event(
+                cycle=cycle_count,
+                content=winning_content
+            )
 
             # Track emotional state every cycle
             self.analytics.record_emotional_state(
@@ -359,7 +489,7 @@ class HizawyeAI:
             mind_changed = self._explore_action(payload["target_concept"])
 
         elif action_type == "reflect":
-            mind_changed = self._reflect_action(payload["trigger"])
+            mind_changed = self._reflect_action(payload)
 
         elif action_type == "analogy":
             mind_changed = self._explore_analogy_action(payload)
@@ -405,6 +535,11 @@ class HizawyeAI:
 
             # Mark goal as complete
             self.goals['completed_goals'].append(self.goals['active_goals'].pop(0))
+            # Drop any duplicate active goals for the same concept
+            self.goals['active_goals'] = [
+                g for g in self.goals['active_goals']
+                if not (isinstance(g, dict) and g.get('concept') == concept)
+            ]
         else:
             self.emotions.update_on_failure(repeated=(goal['attempts'] > 1))
             print(f"❌ Failed: {result.get('error', 'unknown error')}")
@@ -455,10 +590,11 @@ class HizawyeAI:
             node_data = self.memory.graph.nodes[target_concept]
             if not node_data.get('description'):
                 # Create goal to understand it
-                new_goal = self.planner.create_goal_for_concept(target_concept)
-                self.goals['active_goals'].insert(0, new_goal)
-                print(f"📌 Created goal to understand '{target_concept}'")
-                return True
+                if not self._goal_exists_for_concept(target_concept):
+                    new_goal = self.planner.create_goal_for_concept(target_concept)
+                    self.goals['active_goals'].insert(0, new_goal)
+                    print(f"📌 Created goal to understand '{target_concept}'")
+                    return True
 
         return False
 
@@ -476,15 +612,18 @@ class HizawyeAI:
 
         node_data = self.memory.graph.nodes[concept]
         if not node_data.get("description"):
-            new_goal = self.planner.create_goal_for_concept(concept)
-            self.goals["active_goals"].insert(0, new_goal)
-            print(f"📌 Created goal to understand perceived concept '{concept}'")
-            return True
+            if not self._goal_exists_for_concept(concept):
+                new_goal = self.planner.create_goal_for_concept(concept)
+                self.goals["active_goals"].insert(0, new_goal)
+                print(f"📌 Created goal to understand perceived concept '{concept}'")
+                return True
 
         return False
 
-    def _reflect_action(self, trigger):
+    def _reflect_action(self, payload):
         """Reflect on learning patterns (meta-cognition)."""
+        trigger = payload.get("trigger") if isinstance(payload, dict) else str(payload)
+        cycle = payload.get("cycle") if isinstance(payload, dict) else None
         print(f"🔍 Reflecting on learning patterns (trigger: {trigger})")
 
         insights = self.learner.reflect()
@@ -499,6 +638,9 @@ class HizawyeAI:
         # Reflection reduces confusion and pain
         self.emotions.state['confusion'] = max(0, self.emotions.state['confusion'] - 0.2)
         self.emotions.state['pain']['existential'] = max(0, self.emotions.state['pain']['existential'] - 10)
+
+        if cycle is not None:
+            self.analytics.record_reflection(cycle=cycle, trigger=trigger, insights=insights)
 
         return True
 

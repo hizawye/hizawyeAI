@@ -52,10 +52,11 @@ class GoalPlannerModule(Module):
         confidence = self.emotions.state.get("confidence", 0.5)
         focus_drive = drives["focus"] / 100.0
 
-        evidence = _clamp(focus_drive * confidence)
-        salience = _clamp(focus_drive)
+        # Boost goal execution so it doesn't get starved by high-salience percepts.
+        evidence = _clamp(0.35 + (focus_drive * confidence))
+        salience = _clamp(0.1 + focus_drive)
         novelty = 0.2
-        urgency = _clamp(confidence)
+        urgency = _clamp(0.2 + confidence)
 
         logger.info(
             f"[{self.name}] Proposing goal execution: '{current_goal['concept']}'"

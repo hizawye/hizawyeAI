@@ -37,13 +37,14 @@ class ReflectionModule(Module):
 
         urgency = _clamp((total_pain + confusion * 100.0) / 200.0)
         trigger = "pain" if total_pain > 70 or confusion > 0.7 else "periodic"
+        cycle = context.get("cycle")
 
         logger.info(f"[{self.name}] Proposing reflection (trigger={trigger})")
 
         return [
             Proposal(
                 source=self.name,
-                content={"type": "reflect", "payload": {"trigger": trigger}},
+                content={"type": "reflect", "payload": {"trigger": trigger, "cycle": cycle}},
                 evidence=urgency,
                 salience=0.5,
                 novelty=0.2,

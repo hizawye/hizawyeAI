@@ -65,8 +65,12 @@
 - Working memory cache (Miller's 7±2 limit)
 - Analogy detection and pattern recognition
 - Analytics now track concept learning attempts and strategy usage
+- Analytics now track ignition/persistence events and reflection triggers
 - Memory visualization now highlights attention, focus, and top-attention overview map
 - Behavior quality tuned with exploration gating and repetition penalties
+- Goal execution proposals boosted to avoid percept dominance
+- Duplicate concept goals suppressed and cleaned up after success
+- LLM health check with fallback responses to keep learning loop functional
 
 **Backward Compatibility:**
 - Existing minds auto-migrate legacy string goals → structured format
@@ -86,6 +90,8 @@
 - Validate strategy adaptation over multiple cycles
 - Reproduce and diagnose any repeated `explore` loops with new competition scores
 - Confirm session summaries report non-zero concepts learned after goal execution
+- Run evaluation protocol and record ignition/persistence rates
+- Use `evaluate_learning.py` with a second model to validate learning quality
 
 **Potential Enhancements:**
 - Visualization of GNW ignition events and persistence durations
