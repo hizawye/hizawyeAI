@@ -4,3 +4,9 @@ __pycache__/
 venv/
 logs/
 .DS_Store
+reports/session_summary.md
+reports/learning_analysis.md
+reports/consciousness_patterns.md
+reports/emotional_dynamics.md
+reports/learning_verification_*.json
+reports/learning_verification_*.md
